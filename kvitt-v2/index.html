@@ -72,6 +72,8 @@ nav a.home{text-decoration:none;display:inline-flex}
 .checker .top .lbl{color:var(--ink3)}
 .checker .top b{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;letter-spacing:-.2px}
 .flabel{display:block;color:var(--ink3);margin-bottom:8px}
+.soon{display:inline-block;background:var(--amber-light);color:var(--amber);font-family:'Space Grotesk';font-weight:600;font-size:9px;letter-spacing:.1em;padding:3px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;text-transform:uppercase}
+input[type=url]:disabled{opacity:.55;cursor:not-allowed;background:var(--paper2)}
 input[type=url],textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r);color:var(--ink);font-family:'Inter';font-size:15px;padding:14px 15px;outline:none;transition:border-color .18s,background .18s,box-shadow .18s}
 input[type=url]:focus,textarea:focus{border-color:var(--green);background:#fff;box-shadow:0 0 0 3px rgba(47,158,95,.14)}
 input::placeholder,textarea::placeholder{color:var(--ink3)}
@@ -105,17 +107,28 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 .scan-ad .ttl{display:block;height:9px;width:58%;border-radius:3px;background:var(--navy3);margin-bottom:12px}
 .scan-ad .ln{display:block;height:7px;border-radius:3px;background:#e7e2d8;margin-bottom:8px}
 .scan-ad .ln.a{width:90%}.scan-ad .ln.b{width:74%}.scan-ad .ln.c{width:82%}.scan-ad .ln.d{width:54%}
-.scan-warn{position:absolute;left:52%;top:46%;width:26px;height:26px;opacity:0;transform:scale(.3)}
-.scan-warn.show{animation:scanPop .5s cubic-bezier(.34,1.56,.64,1) forwards}
-@keyframes scanPop{0%{opacity:0;transform:scale(.3)}60%{opacity:1;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
-.scan-glass{position:absolute;width:62px;height:62px;left:0;top:0;animation:scanSweep 3.4s ease-in-out infinite}
+/* warning sits at the spot the glass lands on; grows when "found" */
+.scan-warn{position:absolute;left:128px;top:74px;width:24px;height:24px;opacity:0;transform:scale(.2);transform-origin:center;animation:scanWarn 5.2s ease-in-out infinite}
+.scan-warn svg{width:100%;height:100%;display:block}
+@keyframes scanWarn{
+  0%,38%{opacity:0;transform:scale(.2)}
+  46%{opacity:1;transform:scale(.9)}
+  54%{opacity:1;transform:scale(1.5)}      /* funnet! vokser */
+  70%{opacity:1;transform:scale(1.35)}
+  80%{opacity:1;transform:scale(1.35)}
+  90%,100%{opacity:0;transform:scale(.2)}  /* resetter */
+}
+.scan-glass{position:absolute;width:60px;height:60px;left:0;top:0;animation:scanSweep 5.2s ease-in-out infinite}
 .scan-glass svg{width:100%;height:100%;filter:drop-shadow(0 3px 8px rgba(15,29,51,.18))}
 @keyframes scanSweep{
-  0%{transform:translate(6px,42px) rotate(-8deg)}
-  30%{transform:translate(126px,4px) rotate(6deg)}
-  50%{transform:translate(102px,32px) rotate(0deg)}
-  70%{transform:translate(126px,4px) rotate(6deg)}
-  100%{transform:translate(6px,42px) rotate(-8deg)}
+  0%{transform:translate(14px,10px) rotate(-6deg)}
+  16%{transform:translate(120px,16px) rotate(5deg)}
+  30%{transform:translate(40px,54px) rotate(-4deg)}
+  46%{transform:translate(118px,58px) rotate(3deg)}   /* nærmer seg feilen */
+  54%{transform:translate(126px,62px) rotate(0deg)}   /* lander på feilen */
+  72%{transform:translate(126px,62px) rotate(0deg)}   /* holder mens den vokser */
+  88%{transform:translate(70px,30px) rotate(2deg)}
+  100%{transform:translate(14px,10px) rotate(-6deg)}
 }
 .amsg{font-family:'Space Grotesk';font-size:15px;font-weight:600;color:var(--navy);min-height:22px;transition:opacity .3s}
 .ptrack{height:6px;border-radius:4px;background:var(--paper2);overflow:hidden;margin:16px auto 0;max-width:320px}
@@ -288,9 +301,9 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 <div class="checker-wrap">
   <div class="checker" id="inputPanel">
     <div class="top"><b>Sjekk annonsen din</b><span class="lbl">Ingen innlogging</span></div>
-    <label class="flabel lbl">Lim inn FINN-lenke</label>
-    <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/...">
-    <p class="hint">Vi henter annonseteksten automatisk.</p>
+    <label class="flabel lbl">Lim inn FINN-lenke <span class="soon">Kommer snart</span></label>
+    <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/..." disabled>
+    <p class="hint">Automatisk henting fra FINN er på vei. Inntil videre: lim inn teksten under.</p>
     <div class="or lbl"><span>eller lim inn teksten selv</span></div>
     <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
     <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
@@ -391,17 +404,14 @@ async function bumpCounter(){if(!sb)return;try{await sb.rpc('inc_sjekket');}catc
 loadCounter();
 
 const LM=["Henter FINN-annonsen...","Analyserer juridisk risiko...","Identifiserer manglende opplysninger...","Vurderer reklamasjonsrisiko...","Genererer anbefalinger..."];
-let mt,pt,wt;
+let mt,pt;
 function setLoading(on,first){
   document.getElementById('loading').classList.toggle('on',on);
   const f=document.getElementById('pfill');
-  const warn=document.getElementById('scanWarn');
   if(on){let i=0;document.getElementById('loadMsg').textContent=first||LM[0];if(f)f.style.width='8%';
     mt=setInterval(()=>{i=(i+1)%LM.length;const e=document.getElementById('loadMsg');e.style.opacity=0;setTimeout(()=>{e.textContent=LM[i];e.style.opacity=1;},200);},1600);
     let p=8;pt=setInterval(()=>{p=Math.min(p+Math.random()*12,90);if(f)f.style.width=p+'%';},700);
-    // varseltegn lyser opp i takt med at glasset svever over (3.4s loop, treff midt i)
-    if(warn){const pop=()=>{warn.classList.remove('show');void warn.offsetWidth;setTimeout(()=>warn.classList.add('show'),1500);};pop();wt=setInterval(pop,3400);}
-  }else{clearInterval(mt);clearInterval(pt);clearInterval(wt);if(warn)warn.classList.remove('show');if(f)f.style.width='100%';}
+  }else{clearInterval(mt);clearInterval(pt);if(f)f.style.width='100%';}
 }
 function fillExample(){document.getElementById('annonseTekst').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";document.getElementById('annonseTekst').focus();}
 
