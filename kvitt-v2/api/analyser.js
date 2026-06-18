@@ -47,7 +47,7 @@ Lag 4-5 questions. Annonse:
     });
   } catch (err) {
     console.error("Analyse-feil:", err);
-    return res.status(500).json({ error: "Klarte ikke å fullføre analysen." });
+    return res.status(500).json({ error: "Klarte ikke å fullføre analysen.", detail: String(err && err.message || err) });
   }
 }
 
@@ -67,6 +67,42 @@ function parseJson(raw) {
   let t = (raw || "").trim().replace(/```json/gi, "").replace(/```/g, "").trim();
   const a = t.indexOf("{"), b = t.lastIndexOf("}");
   if (a !== -1 && b !== -1 && b > a) t = t.slice(a, b + 1);
-  try { return JSON.parse(t); }
-  catch (e) { return JSON.parse(t.replace(/[\u0000-\u001F]+/g, (m) => m.replace(/\n/g, "\\n").replace(/\r/g, "").replace(/\t/g, " "))); }
+
+  // Forsøk 1: rett fram
+  try { return JSON.parse(t); } catch (e) {}
+
+  // Forsøk 2: escape kontrolltegn (ekte linjeskift/tab) som ligger INNI strenger
+  try { return JSON.parse(escapeControlInStrings(t)); } catch (e) {}
+
+  // Forsøk 3: samme + fjern etterfølgende komma før } eller ]
+  try {
+    let cleaned = escapeControlInStrings(t).replace(/,\s*([}\]])/g, "$1");
+    return JSON.parse(cleaned);
+  } catch (e) {}
+
+  // Siste utvei: kast videre med litt kontekst for logging
+  throw new Error("JSON-parse feilet etter opprydding");
+}
+
+// Går gjennom teksten tegn for tegn og escaper ekte linjeskift, CR og tab
+// som befinner seg inne i en JSON-streng (mellom anførselstegn).
+function escapeControlInStrings(s) {
+  let out = "";
+  let inStr = false;
+  let prev = "";
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (ch === '"' && prev !== "\\") { inStr = false; out += ch; }
+      else if (ch === "\n") out += "\\n";
+      else if (ch === "\r") out += "\\r";
+      else if (ch === "\t") out += "\\t";
+      else out += ch;
+    } else {
+      if (ch === '"') { inStr = true; out += ch; }
+      else out += ch;
+    }
+    prev = ch;
+  }
+  return out;
 }
