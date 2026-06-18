@@ -280,7 +280,6 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
       <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Sjekk annonsen min
     </button>
-    <a href="#partner" class="secondary">Få uforpliktende pristilbud via profesjonell aktør →</a>
     <div class="trust">
       <span><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>100% gratis</span>
       <span><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>15 sekunder</span>
@@ -310,17 +309,6 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <div class="band">
     <div class="cell"><div class="big">2 år</div><div class="cap">har du reklamasjonsansvar etter et privatsalg</div></div>
     <div class="cell"><div class="big">1 av 3</div><div class="cap">privatannonser mangler et gyldig forbehold</div></div>
-  </div>
-</div></section>
-
-<section class="section landing" id="partner"><div class="wrap">
-  <div class="partner">
-    <div style="flex:1;min-width:240px">
-      <span class="tg lbl">Slipp ansvaret helt</span>
-      <h3>Vil du heller slippe hele reklamasjonsrisikoen?</h3>
-      <p>Selger du til en profesjonell aktør, overtar de ansvaret for feil og mangler etter salget. Du får et uforpliktende pristilbud og oppgjør raskt på konto.</p>
-    </div>
-    <a href="#" onclick="return false;">Få pristilbud →</a>
   </div>
 </div></section>
 
@@ -393,20 +381,23 @@ async function analyze(){
   let text="";
   const url=(document.getElementById('finnUrl').value||"").trim();
   const typed=(document.getElementById('annonseTekst').value||"").trim();
+  const ip=document.getElementById('inputPanel');
+  function showInput(){ip.style.display='';setLoading(false);}
+  function hideInput(){ip.style.display='none';}
   if(url){
     if(!/finn\.no/i.test(url)){alert("Lim inn en gyldig FINN-lenke, eller bruk tekstfeltet under.");return;}
-    document.getElementById('inputPanel').style.display='none';setLoading(true,"Henter annonsen fra FINN...");
+    hideInput();setLoading(true,"Henter annonsen fra FINN...");
     try{const r=await fetch('/api/hent-finn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});const d=await r.json();
-      if(!r.ok||!d.text){setLoading(false);document.getElementById('inputPanel').style.display='block';alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i feltet i stedet.");return;}text=d.text;
-    }catch(e){setLoading(false);document.getElementById('inputPanel').style.display='block';alert("Klarte ikke å hente annonsen. Lim inn teksten i feltet i stedet.");return;}
-  }else if(typed.length>=25){text=typed;document.getElementById('inputPanel').style.display='none';}
+      if(!r.ok||!d.text){showInput();alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i feltet i stedet.");return;}text=d.text;
+    }catch(e){showInput();alert("Klarte ikke å hente annonsen. Lim inn teksten i feltet i stedet.");return;}
+  }else if(typed.length>=25){text=typed;hideInput();}
   else{alert("Lim inn en FINN-lenke øverst, eller lim inn annonseteksten i feltet under.");return;}
   document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';
   setLoading(true,"Leser gjennom annonsen din...");
   try{const res=await fetch('/api/analyser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||('Serverfeil '+res.status));}
     const r=await res.json();render(r);bumpCounter();loadCounter();
-  }catch(e){setLoading(false);document.getElementById('inputPanel').style.display='block';console.error(e);alert("Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
+  }catch(e){showInput();console.error(e);alert("Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
 }
 
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
@@ -446,9 +437,6 @@ function render(r){
   if(qs)steps.push({label:'Spørsmål',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
     '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs});
-  steps.push({label:'Neste steg',html:
-    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🤝</span>Neste steg</div>'+
-    '<div class="offer" style="margin-top:4px"><span class="tg lbl">Slipp risikoen helt</span><h3 style="color:#fff">'+(score<55?'Annonsen din har åpne hull – vil du slippe risikoen helt?':'Vil du slippe å tenke på reklamasjon i det hele tatt?')+'</h3><p>Selger du til en profesjonell aktør, overtar de reklamasjonsansvaret. Du får et uforpliktende pristilbud og oppgjør raskt på konto.</p><a href="#" onclick="return false;">Få uforpliktende pristilbud →</a></div>'});
 
   WIZ.steps=steps;
 
@@ -486,7 +474,18 @@ function drawStep(){
 function wizGo(d){WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));drawStep();document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth',block:'center'});}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
 function copyText(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{const o=btn.textContent;btn.textContent="Kopiert ✓";btn.classList.add('done');setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);});}
-function resetTool(){document.body.classList.remove('result-mode');document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';document.getElementById('inputPanel').style.display='block';document.getElementById('annonseTekst').value='';var u=document.getElementById('finnUrl');if(u)u.value='';window.scrollTo({top:0,behavior:'smooth'});}
+function resetTool(){
+  document.body.classList.remove('result-mode');
+  setLoading(false);
+  var L=document.getElementById('loading');if(L)L.classList.remove('on');
+  document.getElementById('results').classList.remove('on');
+  document.getElementById('results').innerHTML='';
+  var ip=document.getElementById('inputPanel');
+  ip.style.display='';
+  document.getElementById('annonseTekst').value='';
+  var u=document.getElementById('finnUrl');if(u)u.value='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 function goHome(e){if(e)e.preventDefault();resetTool();}
 
 (function(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;function init(){var t=document.querySelectorAll('#howSec .step, .band, .partner, .faq details, .section .head');t.forEach(function(el){el.classList.add('sr');});var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});t.forEach(function(el){io.observe(el);});}if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);})();
