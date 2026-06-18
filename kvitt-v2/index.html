@@ -33,7 +33,7 @@
   @keyframes pulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.35)}}
   h1{font-weight:900;font-size:clamp(32px,5.6vw,50px);line-height:1.05;letter-spacing:-.035em;margin-bottom:16px}
   h1 .hl{color:var(--blue)}
-  .hero .lead{font-size:18px;color:var(--ink-soft);max-width:540px;margin:0 auto 8px}
+  .hero .ingress{font-size:18px;color:var(--ink-soft);max-width:540px;margin:0 auto 8px}
 
   .checker{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 1px 3px rgba(20,42,76,.05),0 14px 44px rgba(20,42,76,.10);padding:24px;margin-top:28px;text-align:left}
   .checker .top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px}
@@ -114,12 +114,12 @@
   .qnum{width:24px;height:24px;border-radius:7px;background:var(--blue-bg);color:var(--navy);font-weight:800;font-size:13px;display:grid;place-items:center;flex:none;margin-top:1px}
   .qrow b{font-weight:600;font-size:14.5px} .qrow p{color:var(--ink-soft);font-size:13.5px;margin-top:2px}
 
-  .lead-cta{background:linear-gradient(150deg,var(--navy-deep),var(--blue));color:#fff;border-radius:20px;padding:28px;margin-top:16px;position:relative;overflow:hidden}
-  .lead-cta::before{content:"";position:absolute;right:-50px;top:-50px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%)}
-  .lead-cta .tg{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:5px 11px;border-radius:6px;margin-bottom:12px;position:relative}
-  .lead-cta h3{font-weight:800;font-size:23px;line-height:1.2;letter-spacing:-.02em;margin-bottom:9px;position:relative}
-  .lead-cta p{font-size:14.5px;opacity:.9;margin-bottom:17px;position:relative}
-  .lead-cta a{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--navy);text-decoration:none;font-weight:700;font-size:15px;padding:14px 24px;border-radius:12px;position:relative}
+  .tilbud-boks{background:linear-gradient(150deg,var(--navy-deep),var(--blue));color:#fff;border-radius:20px;padding:28px;margin-top:16px;position:relative;overflow:hidden}
+  .tilbud-boks::before{content:"";position:absolute;right:-50px;top:-50px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%)}
+  .tilbud-boks .tg{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:rgba(255,255,255,.18);padding:5px 11px;border-radius:6px;margin-bottom:12px;position:relative}
+  .tilbud-boks h3{font-weight:800;font-size:23px;line-height:1.2;letter-spacing:-.02em;margin-bottom:9px;position:relative}
+  .tilbud-boks p{font-size:14.5px;opacity:.9;margin-bottom:17px;position:relative}
+  .tilbud-boks a{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--navy);text-decoration:none;font-weight:700;font-size:15px;padding:14px 24px;border-radius:12px;position:relative}
   .restart{display:flex;align-items:center;gap:7px;margin:22px auto 0;background:none;border:none;color:var(--ink-soft);font-size:14px;font-family:'Inter';cursor:pointer}
 
   .section{padding:46px 0 10px}
@@ -166,7 +166,7 @@
 <header class="hero"><div class="wrap" id="heroWrap">
   <span class="badge"><span class="pip"></span>For deg som selger bil privat</span>
   <h1>Slipp at kjøperen kommer <span class="hl">tilbake og krever penger</span></h1>
-  <p class="lead">Lim inn annonsen din, så sjekker vi hvor godt den beskytter deg — og gir deg teksten som tetter hullene.</p>
+  <p class="ingress">Lim inn annonsen din, så sjekker vi hvor godt den beskytter deg — og gir deg teksten som tetter hullene.</p>
 
   <div class="checker" id="inputPanel">
     <div class="top"><b>Sjekk annonsen din</b><span>Ingen innlogging</span></div>
@@ -177,7 +177,7 @@
 
     <div class="or-divider"><span>eller lim inn teksten selv</span></div>
 
-    <textarea id="adText" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
+    <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
     <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
 
     <button class="go" id="goBtn" onclick="analyze()">
@@ -307,14 +307,14 @@ function setLoading(on, firstMsg){
 }
 
 function fillExample(){
-  document.getElementById('adText').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";
-  document.getElementById('adText').focus();
+  document.getElementById('annonseTekst').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";
+  document.getElementById('annonseTekst').focus();
 }
 
 async function analyze(){
   let text = "";
   const url = (document.getElementById('finnUrl').value || "").trim();
-  const typed = (document.getElementById('adText').value || "").trim();
+  const typed = (document.getElementById('annonseTekst').value || "").trim();
 
   if (url) {
     if (!/finn\.no/i.test(url)) { alert("Lim inn en gyldig FINN-lenke, eller bruk tekstfeltet under."); return; }
@@ -398,7 +398,7 @@ function render(r){
   (questions?'<div class="block" id="sporsmal"><h3><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål kjøperen kommer til å stille</h3>'+
     '<p class="d">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+questions+'</div>':'')+
 
-  '<div class="lead-cta"><span class="tg">Slipp risikoen helt</span>'+
+  '<div class="tilbud-boks"><span class="tg">Slipp risikoen helt</span>'+
     '<h3>'+(score<55?'Annonsen din har åpne hull – vil du slippe risikoen helt?':'Vil du slippe å tenke på reklamasjon i det hele tatt?')+'</h3>'+
     '<p>Selger du til en profesjonell aktør, overtar de reklamasjonsansvaret. Du får et uforpliktende pristilbud og oppgjør raskt på konto.</p>'+
     '<a href="#" onclick="return false;">Få uforpliktende pristilbud →</a></div>'+
@@ -429,7 +429,7 @@ function resetTool(){
   document.getElementById('results').classList.remove('on');
   document.getElementById('results').innerHTML='';
   document.getElementById('inputPanel').style.display='block';
-  document.getElementById('adText').value='';
+  document.getElementById('annonseTekst').value='';
   var u=document.getElementById('finnUrl'); if(u) u.value='';
   window.scrollTo({top:0,behavior:'smooth'});
 }
