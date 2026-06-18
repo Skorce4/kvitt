@@ -74,6 +74,12 @@
   .loading.on{display:block}
   .pulse-spin{width:48px;height:48px;margin:0 auto 18px;border-radius:50%;border:3px solid var(--mist);border-top-color:var(--navy);animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes revealUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+  @keyframes slideRight{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+  .reveal{opacity:0;animation:revealUp .6s cubic-bezier(.2,.7,.2,1) forwards}
+  .reveal-scale{opacity:0;animation:scaleIn .7s cubic-bezier(.2,.7,.2,1) forwards}
+  .finding.reveal{animation:slideRight .5s cubic-bezier(.2,.7,.2,1) forwards}
   .loading p{color:var(--ink-soft);font-size:15px;font-weight:500}
 
   .results{display:none}
@@ -370,52 +376,52 @@ function render(r){
   setLoading(false);
   const score=Math.max(0,Math.min(100,r.score));
   const col=colorFor(score), bg=bgFor(score);
-  const flags=(r.flags||[]).map(f=>{
+  const flags=(r.flags||[]).map((f,i)=>{
     const sym=f.level==='ok'?'✓':f.level==='warn'?'!':'×';
-    return '<div class="finding"><span class="mk '+f.level+'">'+sym+'</span><div class="ft"><b>'+esc(f.title)+'</b><p>'+esc(f.detail)+'</p></div></div>';
+    return '<div class="finding reveal" style="animation-delay:'+(0.5+i*0.12)+'s"><span class="mk '+f.level+'">'+sym+'</span><div class="ft"><b>'+esc(f.title)+'</b><p>'+esc(f.detail)+'</p></div></div>';
   }).join('');
   const questions=(r.questions||[]).map((q,i)=>'<div class="qrow"><span class="qnum">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
 
   const html =
-  '<div class="repnav">'+
+  '<div class="repnav reveal" style="animation-delay:.05s">'+
     '<a href="#score">Trygghet</a><a href="#funn">Funn i annonsen</a><a href="#forbehold">Forbehold</a><a href="#annonse">Bedre annonse</a>'+(questions?'<a href="#sporsmal">Spørsmål fra kjøper</a>':'')+
   '</div>'+
-  '<div class="rescard" id="score"><div class="head">'+
+  '<div class="rescard reveal-scale" id="score" style="animation-delay:.12s"><div class="head">'+
     '<div class="gauge-wrap"><svg class="gauge" viewBox="0 0 150 88"><path class="gauge-track" d="M 12 80 A 63 63 0 0 1 138 80"/><path class="gauge-fill" id="gaugeFill" d="M 12 80 A 63 63 0 0 1 138 80"/></svg>'+
     '<div class="gscore"><b id="scoreNum">0</b><br><span>/ 100 trygghet</span></div></div>'+
     '<div class="meta"><div class="lbl" style="color:'+col+'">'+esc(r.label)+'</div><div class="bl">'+esc(r.blurb)+'</div></div>'+
     '<span class="riskpill" style="background:'+bg+';color:'+col+'">'+esc(r.label)+'</span>'+
   '</div><div class="findings" id="funn">'+flags+'</div></div>'+
 
-  '<div class="block legal" id="forbehold"><h3><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold du bør ha med</h3>'+
+  '<div class="block legal reveal" id="forbehold" style="animation-delay:'+(0.55+(r.flags||[]).length*0.12)+'s"><h3><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold du bør ha med</h3>'+
     '<p class="d">Tilpasset bilen din. Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p>'+
     '<div class="copybox" id="legalText">'+esc(r.legal)+'</div><button class="copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button></div>'+
 
-  '<div class="block" id="annonse"><h3><span class="ic" style="background:'+C.blueBg+'">✨</span>Forbedret annonsetekst</h3>'+
+  '<div class="block reveal" id="annonse" style="animation-delay:'+(0.7+(r.flags||[]).length*0.12)+'s"><h3><span class="ic" style="background:'+C.blueBg+'">✨</span>Forbedret annonsetekst</h3>'+
     '<p class="d">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til å lime inn på FINN.</p>'+
     '<div class="copybox" id="improvedText">'+esc(r.improved)+'</div><button class="copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button></div>'+
 
-  (questions?'<div class="block" id="sporsmal"><h3><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål kjøperen kommer til å stille</h3>'+
+  (questions?'<div class="block reveal" id="sporsmal" style="animation-delay:'+(0.85+(r.flags||[]).length*0.12)+'s"><h3><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål kjøperen kommer til å stille</h3>'+
     '<p class="d">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+questions+'</div>':'')+
 
-  '<div class="tilbud-boks"><span class="tg">Slipp risikoen helt</span>'+
+  '<div class="tilbud-boks reveal" style="animation-delay:'+(1.0+(r.flags||[]).length*0.12)+'s"><span class="tg">Slipp risikoen helt</span>'+
     '<h3>'+(score<55?'Annonsen din har åpne hull – vil du slippe risikoen helt?':'Vil du slippe å tenke på reklamasjon i det hele tatt?')+'</h3>'+
     '<p>Selger du til en profesjonell aktør, overtar de reklamasjonsansvaret. Du får et uforpliktende pristilbud og oppgjør raskt på konto.</p>'+
     '<a href="#" onclick="return false;">Få uforpliktende pristilbud →</a></div>'+
 
-  '<button class="restart" onclick="resetTool()">← Sjekk en ny annonse</button>';
+  '<button class="restart reveal" style="animation-delay:'+(1.15+(r.flags||[]).length*0.12)+'s" onclick="resetTool()">← Sjekk en ny annonse</button>';
 
   const box=document.getElementById('results');
   box.innerHTML=html;
   box.classList.add('on');
 
-  // animate gauge + number
+  // animate gauge + number (starts after the card has scaled in)
   const len=198, fill=document.getElementById('gaugeFill');
   fill.style.strokeDasharray=len;fill.style.strokeDashoffset=len;fill.style.stroke=col;
   setTimeout(()=>{
     fill.style.strokeDashoffset=len-(len*score/100);
-    let cur=0;const t=setInterval(()=>{cur+=Math.ceil(score/26);if(cur>=score){cur=score;clearInterval(t);}document.getElementById('scoreNum').textContent=cur;},28);
-  },120);
+    let cur=0;const t=setInterval(()=>{cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}document.getElementById('scoreNum').textContent=cur;},26);
+  },420);
   box.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
