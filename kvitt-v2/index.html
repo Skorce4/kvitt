@@ -49,6 +49,10 @@
   input[type=url]:focus{outline:none;border-color:var(--navy);background:#fff;box-shadow:0 0 0 4px rgba(63,115,196,.12)}
   input[type=url]::placeholder{color:#b3a8ab}
   .hint-small{font-size:12.5px;color:var(--ink-soft);margin-top:9px;line-height:1.45}
+  .flabel{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px}
+  .or-divider{display:flex;align-items:center;text-align:center;margin:18px 0 14px;color:var(--ink-soft);font-size:13px;font-weight:600}
+  .or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  .or-divider span{padding:0 12px}
   .go{width:100%;margin-top:14px;background:var(--navy);color:#fff;border:none;border-radius:13px;padding:17px;font-family:'Inter';font-size:16.5px;font-weight:700;cursor:pointer;transition:background .16s,transform .08s;box-shadow:0 8px 22px rgba(20,42,76,.26);display:flex;align-items:center;justify-content:center;gap:9px}
   .go:hover{background:var(--navy-deep)}
   .go:active{transform:translateY(1px)}
@@ -167,20 +171,14 @@
   <div class="checker" id="inputPanel">
     <div class="top"><b>Sjekk annonsen din</b><span>Ingen innlogging</span></div>
 
-    <div class="tabs">
-      <button type="button" class="tab active" id="tabLink" onclick="setMode('link')">Lim inn FINN-lenke</button>
-      <button type="button" class="tab" id="tabText" onclick="setMode('text')">Lim inn tekst</button>
-    </div>
+    <label class="flabel">Lim inn FINN-lenke</label>
+    <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/..." />
+    <p class="hint-small">Vi henter annonseteksten automatisk.</p>
 
-    <div id="linkMode">
-      <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/..." />
-      <p class="hint-small">Vi henter annonseteksten automatisk. Funker det ikke, bytt til «Lim inn tekst».</p>
-    </div>
+    <div class="or-divider"><span>eller lim inn teksten selv</span></div>
 
-    <div id="textMode" style="display:none">
-      <textarea id="adText" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
-      <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
-    </div>
+    <textarea id="adText" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
+    <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
 
     <button class="go" id="goBtn" onclick="analyze()">
       <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -308,15 +306,6 @@ function setLoading(on, firstMsg){
   } else clearInterval(msgTimer);
 }
 
-let mode = 'link';
-function setMode(m){
-  mode = m;
-  document.getElementById('tabLink').classList.toggle('active', m==='link');
-  document.getElementById('tabText').classList.toggle('active', m==='text');
-  document.getElementById('linkMode').style.display = m==='link' ? 'block' : 'none';
-  document.getElementById('textMode').style.display = m==='text' ? 'block' : 'none';
-}
-
 function fillExample(){
   document.getElementById('adText').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";
   document.getElementById('adText').focus();
@@ -324,35 +313,35 @@ function fillExample(){
 
 async function analyze(){
   let text = "";
+  const url = (document.getElementById('finnUrl').value || "").trim();
+  const typed = (document.getElementById('adText').value || "").trim();
 
-  if (mode === 'link') {
-    const url = document.getElementById('finnUrl').value.trim();
-    if (!/finn\.no/i.test(url)) { alert("Lim inn en gyldig FINN-lenke, eller bytt til «Lim inn tekst»."); return; }
+  if (url) {
+    if (!/finn\.no/i.test(url)) { alert("Lim inn en gyldig FINN-lenke, eller bruk tekstfeltet under."); return; }
     document.getElementById('inputPanel').style.display='none';
     setLoading(true, "Henter annonsen fra FINN...");
     try {
       const r = await fetch('/api/hent-finn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
       const d = await r.json();
       if(!r.ok || !d.text){
-        // fallback: la brukeren lime inn tekst i stedet
         setLoading(false);
         document.getElementById('inputPanel').style.display='block';
-        setMode('text');
-        alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i stedet, så sjekker vi den.");
+        alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i tekstfeltet i stedet.");
         return;
       }
       text = d.text;
     } catch(e){
       setLoading(false);
       document.getElementById('inputPanel').style.display='block';
-      setMode('text');
-      alert("Klarte ikke å hente annonsen. Lim inn teksten i stedet, så sjekker vi den.");
+      alert("Klarte ikke å hente annonsen. Lim inn teksten i tekstfeltet i stedet.");
       return;
     }
-  } else {
-    text = document.getElementById('adText').value.trim();
-    if(text.length<25){alert("Lim inn litt mer av annonseteksten først – minst noen setninger.");return;}
+  } else if (typed.length >= 25) {
+    text = typed;
     document.getElementById('inputPanel').style.display='none';
+  } else {
+    alert("Lim inn en FINN-lenke øverst, eller lim inn annonseteksten i feltet under.");
+    return;
   }
 
   document.getElementById('results').classList.remove('on');
@@ -442,7 +431,6 @@ function resetTool(){
   document.getElementById('inputPanel').style.display='block';
   document.getElementById('adText').value='';
   var u=document.getElementById('finnUrl'); if(u) u.value='';
-  setMode('link');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 </script>
