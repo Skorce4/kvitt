@@ -15,16 +15,33 @@ export default async function handler(req, res) {
     }
 
     const metaPrompt =
-`Du er ekspert på norsk privatbilsalg og kjøpsloven. En privatperson selger bilen sin og har limt inn FINN-annonsen under. Vurder RISIKOEN for at kjøperen kommer tilbake og krever penger (reklamasjon etter kjøpsloven, opplysningsplikt).
+`Du er ekspert på norsk privatbilsalg og kjøpsloven. DU snakker direkte til en privatperson som selger SIN EGEN bil og har limt inn FINN-annonsen sin under. Vurder RISIKOEN for at kjøperen kommer tilbake og krever penger (reklamasjon etter kjøpsloven, opplysningsplikt).
+
+VIKTIG om vurderingen:
+- Når selger ÅPENT opplyser om noe (f.eks. at bilen snart skal til EU-kontroll, kjente feil, slitasje, tidligere skader), er det POSITIVT (level "ok") – åpenhet reduserer reklamasjonsrisiko. Ikke flagg ærlig informasjon som en risiko i seg selv.
+- Ekte RISIKO er det motsatte: manglende «solgt som den er»-forbehold, fortielse av kjente feil, vage superlativer uten dekning, manglende sentrale opplysninger (km, år), eller modifikasjoner/tuning som ikke er opplyst.
+- En kommende EU-kontroll er kun en risiko hvis selger LOVER et bestemt utfall (f.eks. «går rett gjennom EU»). Selve det å opplyse om at den skal til kontroll er bra.
 
 Svar KUN med gyldig JSON. Ingen markdown, ingen backticks, ingen tekst rundt. Ikke bruk linjeskift inne i tekstverdiene. Struktur:
-{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren med 'du'>","flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}]}
+{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}]}
 Lag 4-6 flags. Annonse:
 """${text}"""`;
 
     const textPrompt =
-`Du er ekspert på norsk privatbilsalg. Her er en FINN-annonse fra en privatselger. Lag to ting og svar KUN med gyldig JSON, ingen markdown, ingen backticks. Bruk \\n for linjeskift inne i verdiene, aldri ekte linjeskift.
-{"legal":"<ferdig forbeholdstekst på norsk tilpasset bilen, klar å lime nederst i annonsen. Inkluder 'solgt som den er', oppfordring til visning/prøvekjøring, og at kjente forhold er opplyst. Maks 6 setninger.>","improved":"<forbedret versjon av HELE annonseteksten. Behold alle fakta fra originalen (merke, km, år, pris). Gjør den ryddig, tillitsvekkende og selgende. Mangler viktig info, skriv [fyll inn ...]. Bruk \\n for avsnitt.>","questions":[{"q":"<spørsmål kjøperen sannsynligvis stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
+`Du er ekspert på norsk privatbilsalg. DU hjelper en privatperson som selger SIN EGEN bil. Annonsen er skrevet i førsteperson av eieren selv – behold det perspektivet («jeg», «eier», «selger»), aldri formuler det som om en tredjepart selger på vegne av noen.
+
+KRITISK regel for den forbedrede teksten og forbeholdet:
+- ALDRI lov et fremtidig utfall. Skriv ALDRI noe i retning av at bilen «bør gå gjennom EU-kontroll», «går rett gjennom EU», «vil bestå kontroll» e.l. Slike løfter skaper reklamasjonsrisiko.
+- Beskriv i stedet kun det eier FAKTISK VET I DAG, med forbehold. Trygge formuleringer å bruke (velg det som passer, ev. omskriv lett):
+  • «Ingen kjente feil eller mangler som eier er kjent med per dags dato.»
+  • «Ingen kjente feil som eier er kjent med som bør hindre godkjenning ved EU-kontroll.»
+  • «Etter min vurdering fremstår bilen i god teknisk stand.»
+  • «Bilen fungerer som normalt og uten kjente mangler av betydning.»
+  • «Kjøper oppfordres til å foreta egen vurdering av bilens tilstand.»
+- Hvis originalannonsen lover et fremtidig EU-utfall, SKRIV OM det til en slik trygg, nåtidsbasert formulering.
+
+Lag to ting og svar KUN med gyldig JSON, ingen markdown, ingen backticks. Bruk \\n for linjeskift inne i verdiene, aldri ekte linjeskift.
+{"legal":"<ferdig forbeholdstekst på norsk tilpasset bilen, klar å lime nederst i annonsen. Inkluder 'solgt som den er', oppfordring til visning/prøvekjøring, og en nåtidsbasert formulering om kjente feil (se reglene over). Maks 6 setninger.>","improved":"<forbedret versjon av HELE annonseteksten i eierens førsteperson. Behold alle fakta fra originalen (merke, km, år, pris). Gjør den ryddig, tillitsvekkende og selgende. Følg KRITISK-regelen over – ingen løfter om fremtidig kontroll. Mangler viktig info, skriv [fyll inn ...]. Bruk \\n for avsnitt.>","questions":[{"q":"<spørsmål kjøperen sannsynligvis stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
 Lag 4-5 questions. Annonse:
 """${text}"""`;
 
