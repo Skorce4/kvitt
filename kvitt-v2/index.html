@@ -99,6 +99,24 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 .loading{display:none;max-width:580px;margin:18px auto 0}
 .loading.on{display:block}
 .abox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:28px;text-align:center}
+/* magnifier scan animation */
+.scan-stage{width:220px;height:130px;position:relative;margin:0 auto 22px}
+.scan-ad{position:absolute;inset:0;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:18px 16px;text-align:left;overflow:hidden}
+.scan-ad .ttl{display:block;height:9px;width:58%;border-radius:3px;background:var(--navy3);margin-bottom:12px}
+.scan-ad .ln{display:block;height:7px;border-radius:3px;background:#e7e2d8;margin-bottom:8px}
+.scan-ad .ln.a{width:90%}.scan-ad .ln.b{width:74%}.scan-ad .ln.c{width:82%}.scan-ad .ln.d{width:54%}
+.scan-warn{position:absolute;left:52%;top:46%;width:26px;height:26px;opacity:0;transform:scale(.3)}
+.scan-warn.show{animation:scanPop .5s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes scanPop{0%{opacity:0;transform:scale(.3)}60%{opacity:1;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
+.scan-glass{position:absolute;width:62px;height:62px;left:0;top:0;animation:scanSweep 3.4s ease-in-out infinite}
+.scan-glass svg{width:100%;height:100%;filter:drop-shadow(0 3px 8px rgba(15,29,51,.18))}
+@keyframes scanSweep{
+  0%{transform:translate(6px,42px) rotate(-8deg)}
+  30%{transform:translate(126px,4px) rotate(6deg)}
+  50%{transform:translate(102px,32px) rotate(0deg)}
+  70%{transform:translate(126px,4px) rotate(6deg)}
+  100%{transform:translate(6px,42px) rotate(-8deg)}
+}
 .amsg{font-family:'Space Grotesk';font-size:15px;font-weight:600;color:var(--navy);min-height:22px;transition:opacity .3s}
 .ptrack{height:6px;border-radius:4px;background:var(--paper2);overflow:hidden;margin:16px auto 0;max-width:320px}
 .pfill{height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--navy));transition:width .6s var(--ease)}
@@ -289,7 +307,14 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   </div>
 
   <div class="loading" id="loading">
-    <div class="abox"><p class="amsg" id="loadMsg">Henter FINN-annonsen...</p><div class="ptrack"><div class="pfill" id="pfill"></div></div></div>
+    <div class="abox">
+      <div class="scan-stage">
+        <div class="scan-ad"><span class="ttl"></span><span class="ln a"></span><span class="ln b"></span><span class="ln c"></span><span class="ln d"></span></div>
+        <div class="scan-warn" id="scanWarn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" fill="#faedd6" stroke="#c7841b" stroke-width="1.6" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14" stroke="#c7841b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1" fill="#c7841b"/></svg></div>
+        <div class="scan-glass"><svg viewBox="0 0 74 74" fill="none"><circle cx="30" cy="30" r="22" fill="rgba(47,158,95,0.08)" stroke="#2f9e5f" stroke-width="3"/><line x1="46" y1="46" x2="64" y2="64" stroke="#2f9e5f" stroke-width="5" stroke-linecap="round"/></svg></div>
+      </div>
+      <p class="amsg" id="loadMsg">Henter FINN-annonsen...</p><div class="ptrack"><div class="pfill" id="pfill"></div></div>
+    </div>
     <div class="skel"><div class="skl s"></div><div class="skl m"></div><div class="skl"></div><div class="skl t"></div><div class="skl m"></div></div>
   </div>
 </div>
@@ -366,14 +391,17 @@ async function bumpCounter(){if(!sb)return;try{await sb.rpc('inc_sjekket');}catc
 loadCounter();
 
 const LM=["Henter FINN-annonsen...","Analyserer juridisk risiko...","Identifiserer manglende opplysninger...","Vurderer reklamasjonsrisiko...","Genererer anbefalinger..."];
-let mt,pt;
+let mt,pt,wt;
 function setLoading(on,first){
   document.getElementById('loading').classList.toggle('on',on);
   const f=document.getElementById('pfill');
+  const warn=document.getElementById('scanWarn');
   if(on){let i=0;document.getElementById('loadMsg').textContent=first||LM[0];if(f)f.style.width='8%';
     mt=setInterval(()=>{i=(i+1)%LM.length;const e=document.getElementById('loadMsg');e.style.opacity=0;setTimeout(()=>{e.textContent=LM[i];e.style.opacity=1;},200);},1600);
     let p=8;pt=setInterval(()=>{p=Math.min(p+Math.random()*12,90);if(f)f.style.width=p+'%';},700);
-  }else{clearInterval(mt);clearInterval(pt);if(f)f.style.width='100%';}
+    // varseltegn lyser opp i takt med at glasset svever over (3.4s loop, treff midt i)
+    if(warn){const pop=()=>{warn.classList.remove('show');void warn.offsetWidth;setTimeout(()=>warn.classList.add('show'),1500);};pop();wt=setInterval(pop,3400);}
+  }else{clearInterval(mt);clearInterval(pt);clearInterval(wt);if(warn)warn.classList.remove('show');if(f)f.style.width='100%';}
 }
 function fillExample(){document.getElementById('annonseTekst').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";document.getElementById('annonseTekst').focus();}
 
