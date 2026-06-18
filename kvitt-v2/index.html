@@ -215,6 +215,30 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
 @keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.15}}
 
 @media(max-width:720px){.steps{grid-template-columns:1fr}}
+
+/* RESULT MODE — skjuler landingssiden, fokusert visning */
+body.result-mode .landing{display:none!important}
+body.result-mode #inputPanel{display:none!important}
+body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
+.res-shell{max-width:680px;margin:0 auto;padding:40px 0 20px}
+.res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.res-kicker{color:var(--ink3)}
+.wizard-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md);padding:30px;min-height:340px;display:flex;flex-direction:column}
+.wizard-dots{display:flex;gap:7px;justify-content:center;margin-top:18px}
+.wizard-dot{width:8px;height:8px;border-radius:50%;background:var(--line2);transition:.25s}
+.wizard-dot.on{background:var(--green);transform:scale(1.25)}
+.wizard-dot.done{background:var(--green-mid)}
+.wizard-nav{display:flex;gap:12px;margin-top:20px}
+.wizard-nav .back{background:transparent;border:1.5px solid var(--line2);color:var(--ink2);border-radius:var(--r);padding:13px 22px;font-family:'Space Grotesk';font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+.wizard-nav .back:hover{border-color:var(--ink2);color:var(--ink)}
+.wizard-nav .fwd{flex:1;background:var(--green);color:#fff;border:none;border-radius:var(--r);padding:13px;font-family:'Space Grotesk';font-weight:600;font-size:15px;cursor:pointer;transition:.18s;display:flex;align-items:center;justify-content:center;gap:8px}
+.wizard-nav .fwd:hover{background:var(--green-bright);transform:translateY(-1px)}
+.wstep{animation:rvUp .4s var(--ease)}
+.wstep .step-eyebrow{display:flex;align-items:center;gap:9px;color:var(--ink3);margin-bottom:14px}
+.wstep .step-eyebrow .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
+.wstep h3{font-family:'Space Grotesk';font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:6px}
+.wstep .lead{font-size:14px;color:var(--ink2);margin-bottom:18px}
+.wstep .body{flex:1}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.sr,.rv{opacity:1;transform:none}}
 </style>
 </head>
@@ -228,12 +252,12 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
 </div>
 
 <nav><div class="row">
-  <a href="#top" class="home" id="navLogo"></a>
+  <a href="#top" class="home" id="navLogo" onclick="goHome(event)"></a>
   <span class="nav-tag lbl">Gratis verktøy</span>
 </div></nav>
 
 <a id="top"></a>
-<header class="hero">
+<header class="hero landing">
   <canvas id="heroCv"></canvas>
   <div class="hero-wave"><svg viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 60 L0 30 Q 300 0 600 28 T 1200 26 L1200 60 Z" fill="#F6F4EF"/></svg></div>
   <div class="wrap">
@@ -273,7 +297,7 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
 
 <div class="wrap"><div class="results" id="results"></div></div>
 
-<section class="section" id="howSec"><div class="wrap">
+<section class="section landing" id="howSec"><div class="wrap">
   <div class="head"><span class="sec-label lbl">Slik fungerer det</span><h2>Tre steg, ingen innlogging</h2></div>
   <div class="steps">
     <div class="step"><span class="num">01</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="11" y="9" width="26" height="32" rx="4" fill="#fff" stroke="#0f1d33" stroke-width="2.4"/><line x1="16" y1="18" x2="32" y2="18" stroke="#2f9e5f" stroke-width="2.2" stroke-linecap="round"/><line x1="16" y1="24" x2="32" y2="24" stroke="#c9d6e8" stroke-width="2.2" stroke-linecap="round"/><line x1="16" y1="30" x2="27" y2="30" stroke="#c9d6e8" stroke-width="2.2" stroke-linecap="round"/><path d="M24 2v9M24 11l-3.5-3.5M24 11l3.5-3.5" stroke="#2f9e5f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Lim inn annonsen</h3><p>Lenke fra FINN, eller bare kopier teksten.</p></div>
@@ -282,14 +306,14 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
   </div>
 </div></section>
 
-<section class="section"><div class="wrap">
+<section class="section landing"><div class="wrap">
   <div class="band">
     <div class="cell"><div class="big">2 år</div><div class="cap">har du reklamasjonsansvar etter et privatsalg</div></div>
     <div class="cell"><div class="big">1 av 3</div><div class="cap">privatannonser mangler et gyldig forbehold</div></div>
   </div>
 </div></section>
 
-<section class="section" id="partner"><div class="wrap">
+<section class="section landing" id="partner"><div class="wrap">
   <div class="partner">
     <div style="flex:1;min-width:240px">
       <span class="tg lbl">Slipp ansvaret helt</span>
@@ -300,7 +324,7 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
   </div>
 </div></section>
 
-<section class="section"><div class="wrap">
+<section class="section landing"><div class="wrap">
   <div class="head"><span class="sec-label lbl">Spørsmål</span><h2>Ofte stilte spørsmål</h2></div>
   <div class="faq">
     <details><summary>Er Kvitt gratis?</summary><p>Ja. Lim inn annonsen din, så får du analysen. Ingen innlogging, ingenting å betale.</p></details>
@@ -311,7 +335,7 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
   <div class="disc">Kvitt gir generell informasjon, ikke juridisk rådgivning. Ved privatsalg gjelder kjøpsloven (ikke forbrukerkjøpsloven). Du har opplysningsplikt om kjente feil, og «solgt som den er» fritar deg ikke for ansvar hvis du har holdt tilbake informasjon. Ved tvil, kontakt en jurist.</div>
 </div></section>
 
-<footer><div class="row">
+<footer class="landing"><div class="row">
   <svg height="34" viewBox="0 0 155 60" fill="none"><g transform="rotate(-3 77 30)"><rect x="22" y="14" width="112" height="34" rx="8" fill="none" stroke="#fff" stroke-width="2.6"/><text x="78" y="40" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="21" letter-spacing="2" fill="#fff">KVITT</text><circle cx="40" cy="14" r="8" fill="#37c46f"/><path d="M36.5 14l2.3 2.3L43.5 11.7" stroke="#0f1d33" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
   <span class="lbl">Sjekk annonsen før du selger · Analysen lagres ikke</span>
 </div></footer>
@@ -327,16 +351,20 @@ let sb=null;try{if(SUPABASE_URL.indexOf("http")===0&&window.supabase&&window.sup
 document.getElementById('navLogo').innerHTML='<svg height="34" viewBox="0 0 155 60" fill="none"><g transform="rotate(-3 77 30)"><rect x="22" y="14" width="112" height="34" rx="8" fill="none" stroke="#fff" stroke-width="2.6"/><text x="78" y="40" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="21" letter-spacing="2" fill="#fff">KVITT</text><circle cx="40" cy="14" r="8" fill="#37c46f"/><path d="M36.5 14l2.3 2.3L43.5 11.7" stroke="#0f1d33" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></svg>';
 
 // splash + hero canvas (shared line-field)
+// slow glowing gradient streaks (rolig, ambient)
 function lineField(cv,color){
   const ctx=cv.getContext('2d');let lines=[],W,H;
   function rs(){W=cv.width=cv.offsetWidth;H=cv.height=cv.offsetHeight;}rs();window.addEventListener('resize',rs);
-  function mk(){return{x:Math.random()*W,y:Math.random()*H,len:60+Math.random()*200,a:Math.random()*Math.PI*2,sp:.2+Math.random()*.6,life:0,max:100+Math.random()*130,al:.05+Math.random()*.08};}
-  for(let i=0;i<24;i++){const l=mk();l.life=Math.random()*l.max;lines.push(l);}
+  function mk(){return{x:Math.random()*W,y:Math.random()*H,len:120+Math.random()*260,a:(Math.random()*.5-.25),sp:.06+Math.random()*.12,life:0,max:280+Math.random()*260,al:.04+Math.random()*.07};}
+  for(let i=0;i<16;i++){const l=mk();l.life=Math.random()*l.max;lines.push(l);}
   let on=true;
   (function d(){if(!on)return;ctx.clearRect(0,0,W,H);ctx.fillStyle='#0f1d33';ctx.fillRect(0,0,W,H);
     lines.forEach((l,i)=>{l.life++;const h=l.max/2;const al=l.life<h?(l.life/h)*l.al:((l.max-l.life)/h)*l.al;if(l.life>=l.max)lines[i]=mk();
-      l.x+=Math.cos(l.a)*l.sp*.18;l.y+=Math.sin(l.a)*l.sp*.18;
-      ctx.save();ctx.globalAlpha=al;ctx.strokeStyle=color;ctx.lineWidth=.75;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(l.x+Math.cos(l.a)*l.len,l.y+Math.sin(l.a)*l.len);ctx.stroke();ctx.restore();
+      l.x+=Math.cos(l.a)*l.sp;l.y+=Math.sin(l.a)*l.sp;
+      const x2=l.x+Math.cos(l.a)*l.len,y2=l.y+Math.sin(l.a)*l.len;
+      const g=ctx.createLinearGradient(l.x,l.y,x2,y2);
+      g.addColorStop(0,'rgba(55,196,111,0)');g.addColorStop(.5,'rgba(55,196,111,'+al+')');g.addColorStop(1,'rgba(55,196,111,0)');
+      ctx.save();ctx.strokeStyle=g;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
     });requestAnimationFrame(d);})();
   return ()=>{on=false;};
 }
@@ -384,41 +412,82 @@ async function analyze(){
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function colorFor(s){return s>=70?GREEN:s>=45?AMBER:RED}
 
+let WIZ={steps:[],i:0,score:0,col:GREEN};
 function render(r){
   setLoading(false);
+  document.body.classList.add('result-mode');
   const score=Math.max(0,Math.min(100,r.score)),col=colorFor(score);
-  const flags=(r.flags||[]).map((f,i)=>{const sym=f.level==='ok'?'✓':f.level==='warn'?'!':'×';return '<div class="finding rv" style="animation-delay:'+(0.1+i*0.1)+'s"><span class="mk '+f.level+'">'+sym+'</span><div><b>'+esc(f.title)+'</b><p>'+esc(f.detail)+'</p></div></div>';}).join('');
+  WIZ.score=score;WIZ.col=col;WIZ.i=0;
+
+  const flags=(r.flags||[]).map((f)=>{const sym=f.level==='ok'?'✓':f.level==='warn'?'!':'×';return '<div class="finding"><span class="mk '+f.level+'">'+sym+'</span><div><b>'+esc(f.title)+'</b><p>'+esc(f.detail)+'</p></div></div>';}).join('');
   const qs=(r.questions||[]).map((q,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
-  const fl=(r.flags||[]).length;
-  const html=
-  '<div class="repnav rv" style="animation-delay:.05s"><a href="#score">Trygghet</a><a href="#funn">Funn</a><a href="#forbehold">Forbehold</a><a href="#annonse">Bedre annonse</a>'+(qs?'<a href="#sporsmal">Spørsmål</a>':'')+'</div>'+
-  '<div class="res-hero rv" id="score" style="animation-delay:.12s">'+
-    '<div class="res-eyebrow lbl">Trygghetsscore</div>'+
-    '<div class="score-plate"><div class="reg"><span class="n">KVITT</span><span class="f">N</span></div><div class="score-big" id="scoreNum" style="color:'+col+'">0</div></div>'+
-    '<div class="res-label" style="color:'+col+'">'+esc(r.label)+'</div>'+
-    '<div class="res-blurb">'+esc(r.blurb)+'</div>'+
-    '<div class="rate"><div class="rate-track"><div class="rate-fill" id="rateFill" style="background:'+col+'"></div></div><div class="rate-pct" id="ratePct">0 / 100</div></div>'+
-  '</div>'+
-  '<div style="margin-top:30px"><span class="sec-label lbl">Detaljert gjennomgang</span></div>'+
-  '<div class="grid">'+
-    '<div class="col">'+
-      '<div class="card rv" id="funn" style="animation-delay:.2s"><h3><span class="ic" style="background:'+C.amberBg+'">🔍</span>Funn i annonsen</h3><p class="d">Det vi fant da vi leste annonsen din.</p>'+flags+'</div>'+
-      '<div class="card legal rv" id="forbehold" style="animation-delay:'+(0.3+fl*0.1)+'s"><h3><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold du bør ha med</h3><p class="d">Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p><div class="copybox" id="legalText">'+esc(r.legal)+'</div><button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button></div>'+
-    '</div>'+
-    '<div class="col">'+
-      '<div class="card rv" id="annonse" style="animation-delay:'+(0.4+fl*0.1)+'s"><h3><span class="ic" style="background:'+C.greenBg+'">✨</span>Forbedret annonsetekst</h3><p class="d">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til FINN.</p><div class="copybox" id="improvedText">'+esc(r.improved)+'</div><button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button></div>'+
-      (qs?'<div class="card rv" id="sporsmal" style="animation-delay:'+(0.5+fl*0.1)+'s"><h3><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål kjøperen stiller</h3><p class="d">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs+'</div>':'')+
-    '</div>'+
-    '<div class="offer rv full" style="animation-delay:'+(0.6+fl*0.1)+'s"><span class="tg lbl">Slipp risikoen helt</span><h3>'+(score<55?'Annonsen din har åpne hull – vil du slippe risikoen helt?':'Vil du slippe å tenke på reklamasjon i det hele tatt?')+'</h3><p>Selger du til en profesjonell aktør, overtar de reklamasjonsansvaret. Du får et uforpliktende pristilbud og oppgjør raskt på konto.</p><a href="#" onclick="return false;">Få uforpliktende pristilbud →</a></div>'+
-  '</div>'+
-  '<button class="restart" onclick="resetTool()">← Sjekk en ny annonse</button>';
-  const box=document.getElementById('results');box.innerHTML=html;box.classList.add('on');
-  setTimeout(()=>{let cur=0;const t=setInterval(()=>{cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}document.getElementById('scoreNum').textContent=cur;document.getElementById('ratePct').textContent=cur+' / 100';},26);const rf=document.getElementById('rateFill');if(rf)rf.style.width=score+'%';if(score>80)setTimeout(confetti,500);},350);
-  box.scrollIntoView({behavior:'smooth',block:'start'});
+
+  // bygg stegene
+  const steps=[];
+  steps.push({label:'Trygghet',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Trygghetsscore</div>'+
+    '<div style="text-align:center;padding:8px 0 4px">'+
+      '<div class="score-plate" style="display:inline-flex"><div class="reg"><span class="n">KVITT</span><span class="f">N</span></div><div class="score-big" id="scoreNum" style="color:'+col+'">0</div></div>'+
+      '<div class="res-label" style="color:'+col+';margin-top:12px">'+esc(r.label)+'</div>'+
+      '<div class="res-blurb">'+esc(r.blurb)+'</div>'+
+      '<div class="rate" style="margin:22px auto 0"><div class="rate-track"><div class="rate-fill" id="rateFill" style="background:'+col+'"></div></div><div class="rate-pct" id="ratePct">0 / 100</div></div>'+
+    '</div>'});
+  steps.push({label:'Funn',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">🔍</span>Funn i annonsen</div>'+
+    '<h3>Det vi fant</h3><p class="lead">Dette er punktene som påvirker hvor trygt du står som selger.</p>'+flags});
+  steps.push({label:'Forbehold',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
+    '<h3>Forbehold du bør ha med</h3><p class="lead">Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p>'+
+    '<div class="copybox" id="legalText">'+esc(r.legal)+'</div><button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button>'});
+  steps.push({label:'Bedre annonse',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">✨</span>Bedre annonse</div>'+
+    '<h3>Forbedret annonsetekst</h3><p class="lead">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til FINN.</p>'+
+    '<div class="copybox" id="improvedText">'+esc(r.improved)+'</div><button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'});
+  if(qs)steps.push({label:'Spørsmål',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
+    '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs});
+  steps.push({label:'Neste steg',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🤝</span>Neste steg</div>'+
+    '<div class="offer" style="margin-top:4px"><span class="tg lbl">Slipp risikoen helt</span><h3 style="color:#fff">'+(score<55?'Annonsen din har åpne hull – vil du slippe risikoen helt?':'Vil du slippe å tenke på reklamasjon i det hele tatt?')+'</h3><p>Selger du til en profesjonell aktør, overtar de reklamasjonsansvaret. Du får et uforpliktende pristilbud og oppgjør raskt på konto.</p><a href="#" onclick="return false;">Få uforpliktende pristilbud →</a></div>'});
+
+  WIZ.steps=steps;
+
+  const box=document.getElementById('results');
+  box.innerHTML=
+    '<div class="res-shell">'+
+      '<div class="res-top"><span class="res-kicker lbl">Din analyse</span><button class="restart" style="margin:0;padding:9px 16px" onclick="resetTool()">← Ny sjekk</button></div>'+
+      '<div class="wizard-card"><div class="body" id="wizBody"></div>'+
+        '<div class="wizard-dots" id="wizDots"></div>'+
+        '<div class="wizard-nav" id="wizNav"></div>'+
+      '</div>'+
+    '</div>';
+  box.classList.add('on');
+  drawStep();
+  window.scrollTo({top:0,behavior:'smooth'});
 }
+
+function drawStep(){
+  const s=WIZ.steps[WIZ.i];
+  document.getElementById('wizBody').innerHTML='<div class="wstep">'+s.html+'</div>';
+  // dots
+  document.getElementById('wizDots').innerHTML=WIZ.steps.map((x,i)=>'<span class="wizard-dot '+(i===WIZ.i?'on':(i<WIZ.i?'done':''))+'"></span>').join('');
+  // nav
+  const last=WIZ.i===WIZ.steps.length-1;
+  let nav='';
+  if(WIZ.i>0)nav+='<button class="back" onclick="wizGo(-1)">Tilbake</button>';
+  nav+='<button class="fwd" onclick="'+(last?'resetTool()':'wizGo(1)')+'">'+(last?'Ferdig – sjekk en ny ✓':'Videre →')+'</button>';
+  document.getElementById('wizNav').innerHTML=nav;
+  // animate score on first step
+  if(WIZ.i===0){
+    const score=WIZ.score;
+    setTimeout(()=>{let cur=0;const t=setInterval(()=>{cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}const sn=document.getElementById('scoreNum');if(sn)sn.textContent=cur;const rp=document.getElementById('ratePct');if(rp)rp.textContent=cur+' / 100';},26);const rf=document.getElementById('rateFill');if(rf)rf.style.width=score+'%';if(score>80)setTimeout(confetti,500);},250);
+  }
+}
+function wizGo(d){WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));drawStep();document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth',block:'center'});}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
 function copyText(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{const o=btn.textContent;btn.textContent="Kopiert ✓";btn.classList.add('done');setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);});}
-function resetTool(){document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';document.getElementById('inputPanel').style.display='block';document.getElementById('annonseTekst').value='';var u=document.getElementById('finnUrl');if(u)u.value='';window.scrollTo({top:0,behavior:'smooth'});}
+function resetTool(){document.body.classList.remove('result-mode');document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';document.getElementById('inputPanel').style.display='block';document.getElementById('annonseTekst').value='';var u=document.getElementById('finnUrl');if(u)u.value='';window.scrollTo({top:0,behavior:'smooth'});}
+function goHome(e){if(e)e.preventDefault();resetTool();}
 
 (function(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;function init(){var t=document.querySelectorAll('#howSec .step, .band, .partner, .faq details, .section .head');t.forEach(function(el){el.classList.add('sr');});var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});t.forEach(function(el){io.observe(el);});}if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);})();
 </script>
