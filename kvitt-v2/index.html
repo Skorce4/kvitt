@@ -96,6 +96,12 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 .trust svg{width:15px;height:15px;color:var(--green)}
 .counter{text-align:center;margin-top:18px;font-size:13.5px;color:var(--ink2);min-height:20px}
 .counter b{font-family:'Space Grotesk';color:var(--navy);font-weight:700;font-variant-numeric:tabular-nums}
+.live{display:none;justify-content:center;align-items:center;gap:7px;margin-top:8px;font-size:13px;color:var(--ink2)}
+.live.on{display:flex}
+.live .ldot{width:8px;height:8px;border-radius:50%;background:var(--green);position:relative}
+.live .ldot::after{content:'';position:absolute;inset:0;border-radius:50%;background:var(--green);animation:lpulse 1.8s ease-out infinite}
+@keyframes lpulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.6);opacity:0}}
+.live b{font-family:'Space Grotesk';color:var(--green);font-weight:700;font-variant-numeric:tabular-nums}
 
 /* LOADING */
 .loading{display:none;max-width:580px;margin:18px auto 0}
@@ -254,7 +260,8 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .res-shell{max-width:680px;margin:0 auto;padding:40px 0 20px}
 .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .res-kicker{color:var(--ink3)}
-.wizard-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md);padding:30px;min-height:340px;display:flex;flex-direction:column}
+.wizard-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md);padding:30px;min-height:380px;display:flex;flex-direction:column}
+.wizard-card .body{flex:1}
 .wizard-dots{display:flex;gap:7px;justify-content:center;margin-top:18px}
 .wizard-dot{width:8px;height:8px;border-radius:50%;background:var(--line2);transition:.25s}
 .wizard-dot.on{background:var(--green);transform:scale(1.25)}
@@ -265,6 +272,26 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .wizard-nav .fwd{flex:1;background:var(--green);color:#fff;border:none;border-radius:var(--r);padding:13px;font-family:'Space Grotesk';font-weight:600;font-size:15px;cursor:pointer;transition:.18s;display:flex;align-items:center;justify-content:center;gap:8px}
 .wizard-nav .fwd:hover{background:var(--green-bright);transform:translateY(-1px)}
 .wstep{animation:rvUp .4s var(--ease)}
+.wstep.in-right{animation:slideInR .42s var(--ease)}
+.wstep.in-left{animation:slideInL .42s var(--ease)}
+@keyframes slideInR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes slideInL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
+/* premium tekstboks: dokument med Kvitt-skilt-vannmerke + venstre fargekant */
+.docbox{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:10px;padding:18px 18px 16px;overflow:hidden}
+.docbox::after{content:'KVITT';position:absolute;right:-6px;bottom:-10px;font-family:'Space Grotesk';font-weight:700;font-size:46px;letter-spacing:.06em;color:var(--ink);opacity:.035;pointer-events:none}
+.docbox .doc-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:11px;border-bottom:1px dashed var(--line2)}
+.docbox .doc-dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.docbox .doc-head .lbl{color:var(--ink3)}
+.docbox .doc-text{font-size:13.5px;line-height:1.65;color:var(--ink);white-space:pre-wrap;position:relative;z-index:1}
+.legal .docbox .doc-text{color:var(--ink2)}
+/* les mer */
+.clip{position:relative;max-height:150px;overflow:hidden;transition:max-height .4s var(--ease)}
+.clip.open{max-height:1400px}
+.clip:not(.open)::after{content:'';position:absolute;left:0;right:0;bottom:0;height:54px;background:linear-gradient(transparent,#fff)}
+.lesmer{margin-top:8px;background:transparent;border:none;color:var(--green);font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:5px}
+.lesmer:hover{color:var(--green-bright)}
+.lesmer .arr{transition:transform .25s}
+.lesmer.open .arr{transform:rotate(180deg)}
 .wstep .step-eyebrow{display:flex;align-items:center;gap:9px;color:var(--ink3);margin-bottom:14px}
 .wstep .step-eyebrow .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
 .wstep h3{font-family:'Space Grotesk';font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:6px}
@@ -317,6 +344,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
       <span><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Vi lagrer ingenting</span>
     </div>
     <div class="counter" id="counter"></div>
+    <div class="live" id="live"></div>
   </div>
 
   <div class="loading" id="loading">
@@ -403,6 +431,28 @@ async function loadCounter(){if(!sb)return;try{const{data,error}=await sb.from('
 async function bumpCounter(){if(!sb)return;try{await sb.rpc('inc_sjekket');}catch(e){}}
 loadCounter();
 
+// ---- Live viewers (Supabase Realtime Presence) ----
+(function(){
+  if(!sb)return;
+  let ch;
+  try{
+    ch=sb.channel('kvitt-live',{config:{presence:{key:Math.random().toString(36).slice(2)}}});
+    ch.on('presence',{event:'sync'},()=>{
+      const state=ch.presenceState();
+      const n=Object.keys(state).length;
+      const el=document.getElementById('live');
+      if(!el)return;
+      if(n>=2){
+        el.innerHTML='<span class="ldot"></span><span><b>'+n+'</b> sjekker en annonse akkurat nå</span>';
+        el.classList.add('on');
+      }else{
+        el.classList.remove('on');
+      }
+    });
+    ch.subscribe(async(status)=>{ if(status==='SUBSCRIBED'){ await ch.track({t:Date.now()}); } });
+  }catch(e){}
+})();
+
 const LM=["Henter FINN-annonsen...","Analyserer juridisk risiko...","Identifiserer manglende opplysninger...","Vurderer reklamasjonsrisiko...","Genererer anbefalinger..."];
 let mt,pt;
 function setLoading(on,first){
@@ -467,11 +517,11 @@ function render(r){
   steps.push({label:'Forbehold',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
     '<h3>Forbehold du bør ha med</h3><p class="lead">Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p>'+
-    '<div class="copybox" id="legalText">'+esc(r.legal)+'</div><button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button>'});
+    docBox('legalText','Forbeholdstekst',r.legal)+'<button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button>'});
   steps.push({label:'Bedre annonse',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">✨</span>Bedre annonse</div>'+
     '<h3>Forbedret annonsetekst</h3><p class="lead">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til FINN.</p>'+
-    '<div class="copybox" id="improvedText">'+esc(r.improved)+'</div><button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'});
+    docBox('improvedText','Klar for FINN',r.improved)+'<button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'});
   if(qs)steps.push({label:'Spørsmål',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
     '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs});
@@ -492,24 +542,36 @@ function render(r){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function drawStep(){
+function docBox(id,kicker,txt){
+  const t=esc(txt||'');
+  const long=(txt||'').length>240;
+  return '<div class="docbox"><div class="doc-head"><span class="doc-dot"></span><span class="lbl">'+esc(kicker)+'</span></div>'+
+    '<div class="clip'+(long?'':' open')+'" id="'+id+'clip"><div class="doc-text" id="'+id+'">'+t+'</div></div>'+
+    (long?'<button class="lesmer" id="'+id+'btn" onclick="toggleMer(\''+id+'\')">Les mer <span class="arr">▾</span></button>':'')+
+    '</div>';
+}
+function toggleMer(id){
+  const c=document.getElementById(id+'clip'),b=document.getElementById(id+'btn');
+  const open=c.classList.toggle('open');b.classList.toggle('open',open);
+  b.firstChild.textContent=open?'Vis mindre ':'Les mer ';
+}
+
+function drawStep(dir){
   const s=WIZ.steps[WIZ.i];
-  document.getElementById('wizBody').innerHTML='<div class="wstep">'+s.html+'</div>';
-  // dots
+  const cls=dir===1?'wstep in-right':dir===-1?'wstep in-left':'wstep';
+  document.getElementById('wizBody').innerHTML='<div class="'+cls+'">'+s.html+'</div>';
   document.getElementById('wizDots').innerHTML=WIZ.steps.map((x,i)=>'<span class="wizard-dot '+(i===WIZ.i?'on':(i<WIZ.i?'done':''))+'"></span>').join('');
-  // nav
   const last=WIZ.i===WIZ.steps.length-1;
   let nav='';
   if(WIZ.i>0)nav+='<button class="back" onclick="wizGo(-1)">Tilbake</button>';
   nav+='<button class="fwd" onclick="'+(last?'resetTool()':'wizGo(1)')+'">'+(last?'Ferdig – sjekk en ny ✓':'Videre →')+'</button>';
   document.getElementById('wizNav').innerHTML=nav;
-  // animate score on first step
   if(WIZ.i===0){
     const score=WIZ.score;
     setTimeout(()=>{let cur=0;const t=setInterval(()=>{cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}const sn=document.getElementById('scoreNum');if(sn)sn.textContent=cur;const rp=document.getElementById('ratePct');if(rp)rp.textContent=cur+' / 100';},26);const rf=document.getElementById('rateFill');if(rf)rf.style.width=score+'%';if(score>80)setTimeout(confetti,500);},250);
   }
 }
-function wizGo(d){WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));drawStep();document.querySelector('.wizard-card').scrollIntoView({behavior:'smooth',block:'center'});}
+function wizGo(d){const prev=WIZ.i;WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));if(WIZ.i===prev)return;drawStep(d);}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
 function copyText(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{const o=btn.textContent;btn.textContent="Kopiert ✓";btn.classList.add('done');setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);});}
 function resetTool(){
