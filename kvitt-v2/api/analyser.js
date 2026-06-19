@@ -8,6 +8,36 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "Mangler ANTHROPIC_API_KEY." });
 
+  // ---- Rate limiting: maks 10 forespørsler per IP per time ----
+  // Beskytter mot at noen spammer endepunktet og tømmer Anthropic-kontoen.
+  try {
+    const SUPABASE_URL = process.env.SUPABASE_URL || "https://anzyovvfyepdonlxyxzc.supabase.co";
+    const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuenlvdnZmeWVwZG9ubHh5eHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTM4MTMsImV4cCI6MjA5NzM2OTgxM30.UMeP9ES9Y4_x_BxZUKVssDLOBNGMIhhc_JtgO50MVaE";
+    // Hent IP fra Vercel-headere
+    const fwd = req.headers["x-forwarded-for"] || "";
+    const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd).split(",")[0].trim() || req.socket?.remoteAddress || "ukjent";
+
+    const rl = await fetch(SUPABASE_URL + "/rest/v1/rpc/check_rate_limit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON,
+        "Authorization": "Bearer " + SUPABASE_ANON,
+      },
+      body: JSON.stringify({ client_ip: clientIp, max_per_hour: 10 }),
+    });
+    if (rl.ok) {
+      const allowed = await rl.json();
+      if (allowed === false) {
+        return res.status(429).json({ error: "Du har sjekket mange annonser den siste timen. Prøv igjen om litt." });
+      }
+    }
+    // Hvis rate-limit-sjekken feiler teknisk, lar vi forespørselen gå gjennom
+    // (vi vil ikke blokkere ekte brukere hvis Supabase er nede).
+  } catch (e) {
+    // stille fallthrough – ikke blokker på teknisk feil
+  }
+
   try {
     const { text } = req.body || {};
     if (!text || text.trim().length < 25) {
