@@ -507,9 +507,9 @@ async function analyze(){
   document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';
   setLoading(true,"Leser gjennom annonsen din...");
   try{const res=await fetch('/api/analyser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
-    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||('Serverfeil '+res.status));}
+    if(!res.ok){const e=await res.json().catch(()=>({}));const msg=e.error||('Serverfeil '+res.status);const err=new Error(msg);err.userMsg=(res.status===429);throw err;}
     const r=await res.json();render(r);bumpCounter();loadCounter();
-  }catch(e){showInput();console.error(e);alert("Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
+  }catch(e){showInput();console.error(e);alert(e.userMsg?e.message:"Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
 }
 
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
