@@ -162,46 +162,37 @@ function browserHeaders(url) {
 }
 
 function extractFromFinn(html) {
-  let parts = [];
+  const parts = [];
 
-  // 1) BEST: __NEXT_DATA__ – moderne FINN legger all data her
-  const nextMatch = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-  if (nextMatch) {
+  // 1) og:title – har som regel "Merke Modell - år - farge - hk - karosseri"
+  const ogTitle = meta(html, "og:title");
+  if (ogTitle) parts.push(ogTitle);
+
+  // 2) Pris + nøkkeldata fra JSON-LD (Product-blokken)
+  const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const m of ldMatches) {
     try {
-      const data = JSON.parse(nextMatch[1].trim());
-      const found = deepFindAd(data);
-      if (found.title) parts.push(found.title);
-      if (found.description) parts.push(found.description);
-    } catch (_) { /* ignorer */ }
-  }
-
-  // 2) JSON-LD strukturert data
-  if (parts.length === 0) {
-    const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
-    for (const m of ldMatches) {
-      try {
-        const data = JSON.parse(m[1].trim());
-        const arr = Array.isArray(data) ? data : [data];
-        for (const obj of arr) {
-          if (obj && (obj.name || obj.description)) {
-            if (obj.name) parts.push(decode(String(obj.name)));
-            if (obj.description) parts.push(decode(String(obj.description)));
+      const data = JSON.parse(m[1].trim());
+      const arr = Array.isArray(data) ? data : [data];
+      for (const obj of arr) {
+        if (obj && obj["@type"] === "Product") {
+          if (obj.offers) {
+            const o = Array.isArray(obj.offers) ? obj.offers[0] : obj.offers;
+            if (o && o.price) parts.push("Pris: " + o.price + " " + (o.priceCurrency || "NOK"));
           }
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
 
-  // 3) og:title + og:description
-  if (parts.length === 0) {
-    const t = meta(html, "og:title"); if (t) parts.push(t);
-    const d = meta(html, "og:description"); if (d) parts.push(d);
-  }
+  // 3) Full annonsetekst. FINN legger beskrivelsen i HTML-en – prøv flere mønstre.
+  const full = finnFullBeskrivelse(html);
+  if (full) parts.push(full);
 
-  // 4) <title>
-  if (parts.length === 0) {
-    const t = html.match(/<title>([\s\S]*?)<\/title>/i);
-    if (t) parts.push(decode(t[1]));
+  // 4) Fallback: og:description (avkortet, men bedre enn ingenting hvis 3 feiler)
+  if (!full) {
+    const ogDesc = meta(html, "og:description");
+    if (ogDesc) parts.push(ogDesc);
   }
 
   const seen = new Set();
@@ -209,6 +200,33 @@ function extractFromFinn(html) {
     .map((p) => String(p).replace(/\s+/g, " ").trim())
     .filter((p) => p && !seen.has(p) && seen.add(p));
   return clean.join("\n\n").slice(0, 6000);
+}
+
+// Leter etter den fulle annonsebeskrivelsen i FINN-HTML.
+// FINN bruker ulike mønstre; vi prøver flere og tar den lengste treffet.
+function finnFullBeskrivelse(html) {
+  const kandidater = [];
+
+  // Mønster A: JSON-felt "description" eller "adText" i inline state (ikke JSON-LD)
+  const jsonFelt = [...html.matchAll(/"(?:description|adText|bodyHtml|generalText|body)"\s*:\s*"((?:[^"\\]|\\.){40,})"/gi)];
+  for (const m of jsonFelt) {
+    try {
+      // Verdien er JSON-escaped – tolk den ved å pakke i anførselstegn
+      const tekst = JSON.parse('"' + m[1] + '"');
+      kandidater.push(decode(stripTags(tekst)));
+    } catch (_) {
+      kandidater.push(decode(stripTags(m[1])));
+    }
+  }
+
+  // Mønster B: HTML-seksjon med data-testid for beskrivelse
+  const seksjon = html.match(/data-testid=["'](?:description|ad-description)["'][^>]*>([\s\S]*?)<\/(?:div|section)>/i);
+  if (seksjon) kandidater.push(decode(stripTags(seksjon[1])));
+
+  // Velg den lengste kandidaten (mest komplett beskrivelse)
+  kandidater.sort((a, b) => b.length - a.length);
+  const beste = kandidater[0];
+  return beste && beste.length > 40 ? beste : null;
 }
 
 // Søk rekursivt i __NEXT_DATA__ etter annonsetittel + beskrivelse
