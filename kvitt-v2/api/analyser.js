@@ -62,9 +62,11 @@ VIKTIG om risikovurderingen:
 
 Hver subjektiv frase du flagger (f.eks. «strøken», «meget godt vedlikeholdt», «går som ei kule», «pent brukt», «alt man kan ønske seg») skal du føre opp i listen "banned". Denne listen brukes senere til å skrive en forbedret annonse uten disse frasene, så vær nøyaktig.
 
+MODELLSVAKHETER: Basert på bilens merke, modell, årgang og motor/girkasse, list kjente svakheter eller vanlige feilpunkter for nettopp denne modellen (f.eks. DSG-mekatronikk på VW, EGR/partikkelfilter på visse dieselmotorer, kjedestrekk, kjente rustpunkter). Dette hjelper selgeren være åpen om det og unngå reklamasjon. Vær konkret og faglig – kun reelle kjente svakheter, ikke gjett vilt. Kjenner du ingen spesifikke svakheter, returner tom liste.
+
 Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Ikke bruk ekte linjeskift inne i verdiene. Struktur:
-{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall eller null>,"begrunnelse":"<kort begrunnelse>"}}
-Lag 4-6 flags. Annonse:
+{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall eller null>,"begrunnelse":"<kort begrunnelse>"},"modellsjekk":[{"punkt":"<kjent svakhet for denne modellen>","hvorfor":"<hvorfor selger bør sjekke/opplyse om dette>"}]}
+Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
 """${text}"""`;
 
     const raw = await callClaude(apiKey, diagnosePrompt, 1400);
@@ -77,7 +79,7 @@ Lag 4-6 flags. Annonse:
       flags: r.flags,
       banned: r.banned || [],
       reklamasjon: r.reklamasjon || null,
-      // originalteksten sendes tilbake så frontend kan gi den videre til tekst-kallet
+      modellsjekk: r.modellsjekk || [],
       _text: text,
     });
   } catch (err) {
