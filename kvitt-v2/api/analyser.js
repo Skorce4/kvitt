@@ -44,60 +44,37 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Annonseteksten er for kort." });
     }
 
-    // ETT samlet prompt. Diagnose (flags) og forbedret tekst (improved/legal)
-    // lages i SAMME kall, slik at teksten ikke kan motsi diagnosen. Modellen
-    // fører selv en "banned"-liste over subjektive fraser den flagger, og de
-    // frasene er forbudt i improved/legal.
-    const fullPrompt =
-`Du er ekspert på norsk privatbilsalg og kjøpsloven. DU snakker direkte til en privatperson som selger SIN EGEN bil og har limt inn FINN-annonsen sin under. Du skal både VURDERE reklamasjonsrisikoen og SKRIVE en forbedret annonse – i samme svar, som en sammenhengende helhet.
+    // RASKT diagnose-kall. Returnerer kun score + flags + banned + reklamasjon.
+    // Annonsetekst og forbehold hentes separat via /api/analyser-tekst, som får
+    // banned-listen herfra som input – slik unngås selvmotsigelse selv om kallene
+    // er splittet. Splittingen lar frontend vise scoren på halve tiden.
+    const diagnosePrompt =
+`Du er ekspert på norsk privatbilsalg og kjøpsloven. DU snakker direkte til en privatperson som selger SIN EGEN bil og har limt inn FINN-annonsen sin under. Vurder reklamasjonsrisikoen.
 
-VIKTIG om risikovurderingen (flags):
+VIKTIG om risikovurderingen:
 - Når selger ÅPENT opplyser om noe (kommende EU-kontroll, kjente feil, slitasje, tidligere skader), er det POSITIVT (level "ok") – åpenhet reduserer reklamasjonsrisiko. Ikke flagg ærlig informasjon som en risiko i seg selv.
 - Ekte RISIKO er: manglende «solgt som den er»-forbehold, fortielse av kjente feil, vage superlativer uten dekning, manglende sentrale opplysninger (km, år), eller modifikasjoner/tuning som ikke er opplyst.
 - En kommende EU-kontroll er kun en risiko hvis selger LOVER et bestemt utfall («går rett gjennom EU»). Å opplyse om at den skal til kontroll er bra.
 
-DEN VIKTIGSTE REGELEN – INGEN SELVMOTSIGELSE:
-Hver subjektiv frase du flagger i "flags" (f.eks. «strøken», «meget godt vedlikeholdt», «går som ei kule», «pent brukt», «alt man kan ønske seg») skal du føre opp i listen "banned". Disse frasene er ABSOLUTT FORBUDT å bruke i "improved" og "legal". Du kan ikke advare mot en formulering og samtidig bruke den selv. Erstatt den med konkrete, etterprøvbare fakta i stedet. Mangler fakta, skriv [fyll inn ...].
+Hver subjektiv frase du flagger (f.eks. «strøken», «meget godt vedlikeholdt», «går som ei kule», «pent brukt», «alt man kan ønske seg») skal du føre opp i listen "banned". Denne listen brukes senere til å skrive en forbedret annonse uten disse frasene, så vær nøyaktig.
 
-KRITISK regel for improved og legal:
-- Behold eierens førsteperson («jeg», «eier», «selger»), aldri som om en tredjepart selger.
-- ALDRI lov et fremtidig utfall («bør gå gjennom EU-kontroll», «går rett gjennom EU», «vil bestå kontroll»). Slike løfter skaper reklamasjonsrisiko.
-- Beskriv kun det eier VET I DAG, med forbehold. Trygge formuleringer:
-  • «Ingen kjente feil eller mangler som eier er kjent med per dags dato.»
-  • «Etter min vurdering fremstår bilen i god teknisk stand.»
-  • «Kjøper oppfordres til å foreta egen vurdering av bilens tilstand.»
-- Behold alle fakta fra originalen (merke, km, år, pris).
-
-Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Bruk \\n for linjeskift inne i verdiene, aldri ekte linjeskift. Struktur:
-{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall eller null>,"begrunnelse":"<kort begrunnelse>"},"legal":"<forbeholdstekst, maks 6 setninger, uten forbudte fraser>","improved":"<forbedret annonsetekst i førsteperson, uten en eneste forbudt frase, bruk \\n for avsnitt>","questions":[{"q":"<spørsmål kjøperen stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
-Lag 4-6 flags og 4-5 questions. Annonse:
+Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Ikke bruk ekte linjeskift inne i verdiene. Struktur:
+{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall eller null>,"begrunnelse":"<kort begrunnelse>"}}
+Lag 4-6 flags. Annonse:
 """${text}"""`;
 
-    const raw = await callClaude(apiKey, fullPrompt, 3200);
+    const raw = await callClaude(apiKey, diagnosePrompt, 1400);
     const r = parseJson(raw);
-
-    // Sikkerhetsnett: dersom modellen tross alt gjenbruker en forbudt frase,
-    // bytt den ut før den når brukeren. Da ser brukeren aldri en selvmotsigelse.
-    if (Array.isArray(r.banned) && r.banned.length) {
-      r.improved = rensForbudte(r.improved, r.banned);
-      r.legal = rensForbudte(r.legal, r.banned);
-    }
-
-    // Legg til en diskré signatur nederst i annonseteksten. Følger med når
-    // selger kopierer teksten til FINN – gratis distribusjon for Kvittn.
-    if (r.improved && !/kvittn\.no/i.test(r.improved)) {
-      r.improved = r.improved.replace(/\s*$/, "") + "\n\n— Annonsen er kvalitetssjekket med kvittn.no";
-    }
 
     return res.status(200).json({
       score: r.score,
       label: r.label,
       blurb: r.blurb,
       flags: r.flags,
+      banned: r.banned || [],
       reklamasjon: r.reklamasjon || null,
-      legal: r.legal,
-      improved: r.improved,
-      questions: r.questions || [],
+      // originalteksten sendes tilbake så frontend kan gi den videre til tekst-kallet
+      _text: text,
     });
   } catch (err) {
     console.error("Analyse-feil:", err);
