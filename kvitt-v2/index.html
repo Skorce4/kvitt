@@ -384,6 +384,11 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .tamed{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line2)}
 .tamed-t{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
 .tamedbtn{width:100%}
+.bilgal{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:auto auto;gap:6px;margin-bottom:16px;border-radius:12px;overflow:hidden}
+.bilgal-i{overflow:hidden;background:#0d1626;aspect-ratio:4/3}
+.bilgal-i.hoved{grid-row:span 2;aspect-ratio:auto}
+.bilgal-i img{width:100%;height:100%;object-fit:cover;display:block}
+@media(max-width:520px){.bilgal{grid-template-columns:1fr 1fr}.bilgal-i.hoved{grid-column:span 2;grid-row:auto;aspect-ratio:16/9}}
 .dash-kroner{margin:14px 0 4px;padding:12px 14px;background:rgba(255,255,255,.04);border-radius:8px;font-size:14px;color:#cdd6e3;line-height:1.5}
 .tekstlaster{display:flex;align-items:center;gap:12px;padding:32px 8px;color:var(--ink2);font-size:15px}
 .tspin{width:20px;height:20px;border:2.5px solid var(--line2);border-top-color:var(--green);border-radius:50%;animation:tspin .7s linear infinite;flex:0 0 auto}
@@ -689,9 +694,9 @@ async function analyze(){
     if(!/finn\.no/i.test(url)){alert("Lim inn en gyldig FINN-lenke, eller bruk tekstfeltet under.");return;}
     hideInput();setLoading(true,"Henter annonsen fra FINN...");
     try{const r=await fetch('/api/hent-finn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});const d=await r.json();
-      if(!r.ok||!d.text){showInput();alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i feltet i stedet.");return;}text=d.text;
+      if(!r.ok||!d.text){showInput();alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i feltet i stedet.");return;}text=d.text;window.__bilder=d.bilder||[];
     }catch(e){showInput();alert("Klarte ikke å hente annonsen. Lim inn teksten i feltet i stedet.");return;}
-  }else if(typed.length>=25){text=typed;hideInput();}
+  }else if(typed.length>=25){text=typed;window.__bilder=[];hideInput();}
   else{alert("Lim inn en FINN-lenke øverst, eller lim inn annonseteksten i feltet under.");return;}
   document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';
   setLoading(true,"Leser gjennom annonsen din...");
@@ -746,8 +751,12 @@ function render(r){
   const kroneLinje=(r.reklamasjon&&r.reklamasjon.eksponering_nok!=null)
     ? '<div class="dash-kroner">Denne annonsen kan koste deg opptil <b style="color:'+col+'">'+Number(r.reklamasjon.eksponering_nok).toLocaleString('no-NO')+' kr</b> ved en reklamasjon.</div>'
     : '';
+  const bilder=window.__bilder||[];
+  const bildeGalleri=bilder.length?
+    '<div class="bilgal">'+bilder.slice(0,4).map((u,i)=>'<div class="bilgal-i'+(i===0?' hoved':'')+'"><img src="'+esc(u)+'" alt="Bilbilde" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>').join('')+'</div>':'';
   steps.push({label:'Diagnose',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">📊</span>Kvittn diagnose</div>'+
+    bildeGalleri+
     '<div class="dashboard">'+
       '<div class="dash-top"><span class="dt">Trygghetsdiagnose</span><span class="dbadge">ANNONSE-SCAN · OK</span></div>'+
       '<div class="dash-readout">'+
