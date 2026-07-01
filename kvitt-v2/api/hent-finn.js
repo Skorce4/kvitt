@@ -1,147 +1,892 @@
-// api/hent-finn.js
-// Henter en FINN-annonse fra URL og plukker ut tittel + beskrivelse.
-// Forbedret: fyldige headers, __NEXT_DATA__-parsing, JSON-LD, meta-fallback, retry.
-// Skjør etter design – FINN kan fortsatt blokkere. Frontend har tekstfelt som fallback.
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kvittn — bli kvittn, trygt</title>
+<meta name="description" content="Lim inn FINN-annonsen din, så sjekker Kvittn hvor godt den beskytter deg mot reklamasjon. Gratis på 15 sekunder.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23101d33'/%3E%3Ctext x='20' y='27' text-anchor='middle' font-family='Arial' font-weight='800' font-size='15' fill='white'%3EK%3C/text%3E%3Ccircle cx='12' cy='11' r='5' fill='%232f9e5f'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1d33; --navy2:#16284a; --navy3:#1e3a5f;
+  --ink:#101a2c; --ink2:#46546b; --ink3:#8893a4;
+  --green:#2f9e5f; --green-bright:#37c46f; --green-light:#e4f3ea; --green-mid:#bce3cd;
+  --paper:#F6F4EF; --paper2:#EFEBE2; --surface:#fff; --line:#E4DFD4; --line2:#D2CCBE;
+  --red:#cf3d33; --red-light:#fbe6e4;
+  --amber:#c7841b; --amber-light:#f9edd6;
+  --plate:#f4d23c; /* nummerskilt-gul aksent, brukt sparsomt */
+  --r:10px; --r-lg:16px;
+  --sh:0 1px 2px rgba(15,29,51,.06),0 6px 20px rgba(15,29,51,.06);
+  --sh-md:0 2px 6px rgba(15,29,51,.09),0 14px 40px rgba(15,29,51,.10);
+  --ease:cubic-bezier(.33,1,.33,1);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;overflow-x:hidden}
+/* grain */
+body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.5;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")}
+.lbl{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Bruk POST." });
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:2000;background:var(--navy);display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity .6s,visibility .6s}
+#splash.gone{opacity:0;visibility:hidden}
+#splash canvas{position:absolute;inset:0;width:100%;height:100%}
+.splash-mark{position:relative;z-index:2;opacity:0;transform:translateY(20px) scale(.96);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.splash-mark.show{opacity:1;transform:none}
 
-  try {
-    const { url } = req.body || {};
-    if (!url || !/finn\.no/i.test(url)) {
-      return res.status(400).json({ error: "Lim inn en gyldig FINN-lenke." });
-    }
+/* PLATE LOGO (signatur) */
+.plate{display:inline-flex;align-items:stretch;border-radius:7px;overflow:hidden;border:2px solid var(--ink);background:#fff;font-family:'Space Grotesk',sans-serif;line-height:1}
+.plate .band{background:var(--navy);width:16px;display:flex;align-items:center;justify-content:center}
+.plate .band i{width:7px;height:7px;border-radius:50%;background:var(--green-bright);font-style:normal}
+.plate .txt{padding:7px 11px 6px;font-weight:700;font-size:20px;letter-spacing:.14em;color:var(--ink)}
+.plate.lg .txt{font-size:30px;padding:11px 16px 9px}
+.plate.lg .band{width:22px}.plate.lg .band i{width:9px;height:9px}
+.plate.inv{border-color:#fff;background:transparent}
+.plate.inv .txt{color:#fff}.plate.inv .band{background:#fff}.plate.inv .band i{background:var(--green-bright)}
 
-    let html = null;
-    // Prøv opptil 2 ganger
-    for (let attempt = 0; attempt < 2 && !html; attempt++) {
-      try {
-        const r = await fetch(url, { headers: browserHeaders(url) });
-        if (r.ok) { html = await r.text(); break; }
-      } catch (_) { /* prøv igjen */ }
-      await new Promise((res2) => setTimeout(res2, 400));
-    }
+/* NAV */
+nav{position:sticky;top:0;z-index:100;height:64px;background:rgba(15,29,51,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+nav .row{max-width:1120px;margin:0 auto;padding:0 24px;height:100%;display:flex;align-items:center;justify-content:space-between}
+nav a.home{text-decoration:none;display:inline-flex}
+.nav-tag{color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.16);border-radius:6px;padding:5px 11px}
+.nav-right{display:flex;align-items:center;gap:8px}
+.nav-link{color:rgba(255,255,255,.6);text-decoration:none;padding:7px 12px;border-radius:6px;transition:.15s;white-space:nowrap}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,.07)}
+body.result-mode .nav-link{display:none}
+@media(max-width:780px){.nav-link{display:none}.nav-tag{display:none}}
 
-    if (!html) {
-      return res.status(502).json({ error: "Klarte ikke å hente annonsen fra FINN." });
-    }
+/* HERO (dark) */
+.hero{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:72px 0 96px}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.5}
+.hero .wrap{position:relative;z-index:2;max-width:1120px;margin:0 auto;padding:0 24px;text-align:center}
+.hero-eyebrow{color:var(--green-bright);margin-bottom:22px;display:inline-flex;align-items:center;gap:9px}
+.hero-eyebrow::before,.hero-eyebrow::after{content:'';width:24px;height:1px;background:rgba(55,196,111,.4)}
+.hero h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(36px,6vw,60px);line-height:1.05;letter-spacing:-1.5px;margin-bottom:20px}
+.hero h1 .hl{color:var(--green-bright)}
+.hero .sub{font-size:18px;color:rgba(255,255,255,.72);max-width:520px;margin:0 auto;line-height:1.6}
+.hero-wave{position:absolute;bottom:-1px;left:0;right:0;z-index:1;line-height:0}
+.hero-wave svg{width:100%;height:60px;display:block}
 
-    const text = extractFromFinn(html);
-    if (!text || text.length < 40) {
-      return res.status(422).json({ error: "Fant ikke annonseteksten." });
-    }
-    return res.status(200).json({ text });
-  } catch (e) {
-    console.error("FINN-henting feilet:", e);
-    return res.status(500).json({ error: "Noe gikk galt under henting." });
-  }
+/* CHECKER (overlaps hero/content seam) */
+.checker-wrap{max-width:1120px;margin:-58px auto 0;padding:0 24px;position:relative;z-index:10}
+.checker{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md);padding:26px;max-width:580px;margin:0 auto}
+.checker .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.checker .top .lbl{color:var(--ink3)}
+.checker .top b{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;letter-spacing:-.2px}
+.flabel{display:block;color:var(--ink3);margin-bottom:8px}
+.soon{display:inline-block;background:var(--amber-light);color:var(--amber);font-family:'Space Grotesk';font-weight:600;font-size:9px;letter-spacing:.1em;padding:3px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;text-transform:uppercase}
+input[type=url]:disabled{opacity:.55;cursor:not-allowed;background:var(--paper2)}
+input[type=url],textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r);color:var(--ink);font-family:'Inter';font-size:15px;padding:14px 15px;outline:none;transition:border-color .18s,background .18s,box-shadow .18s}
+input[type=url]:focus,textarea:focus{border-color:var(--green);background:#fff;box-shadow:0 0 0 3px rgba(47,158,95,.14)}
+input::placeholder,textarea::placeholder{color:var(--ink3)}
+textarea{min-height:128px;line-height:1.5;resize:vertical}
+.hint{font-size:12.5px;color:var(--ink3);margin-top:8px}
+.or{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:var(--ink3)}
+.or::before,.or::after{content:'';flex:1;height:1px;background:var(--line)}
+.ex-btn{margin-top:10px;width:100%;background:transparent;border:1.5px dashed var(--line2);color:var(--ink2);font-family:'Inter';font-weight:600;font-size:13px;padding:11px;border-radius:var(--r);cursor:pointer;transition:.15s}
+.ex-btn:hover{background:var(--paper);color:var(--ink)}
+
+.btn{font-family:'Space Grotesk',sans-serif;font-weight:600;cursor:pointer;border:none;transition:transform .14s,box-shadow .2s,background .2s;display:inline-flex;align-items:center;justify-content:center;gap:9px}
+.go{width:100%;margin-top:16px;background:var(--green);color:#fff;border-radius:var(--r);padding:16px;font-size:16px;letter-spacing:.01em;box-shadow:0 2px 12px rgba(47,158,95,.34);animation:breathe 9s ease-in-out infinite}
+.go:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 8px 22px rgba(47,158,95,.42)}
+.go svg{width:18px;height:18px;transition:transform .2s}.go:hover svg{transform:translateX(2px)}
+@keyframes breathe{0%,92%,100%{box-shadow:0 2px 12px rgba(47,158,95,.34)}96%{box-shadow:0 4px 22px rgba(47,158,95,.6)}}
+.secondary{display:flex;align-items:center;justify-content:center;width:100%;margin-top:11px;background:transparent;color:var(--navy);border:1.5px solid var(--line2);border-radius:var(--r);padding:14px;font-size:14px;font-weight:600;text-decoration:none;transition:.15s}
+.secondary:hover{border-color:var(--navy);background:var(--paper)}
+.trust{display:flex;justify-content:center;gap:16px;margin-top:18px;flex-wrap:wrap}
+.trust span{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);font-weight:500}
+.trust svg{width:15px;height:15px;color:var(--green)}
+.counter{text-align:center;margin-top:18px;font-size:13.5px;color:var(--ink2);min-height:20px}
+.counter b{font-family:'Space Grotesk';color:var(--navy);font-weight:700;font-variant-numeric:tabular-nums}
+.live{display:none;justify-content:center;align-items:center;gap:7px;margin-top:8px;font-size:13px;color:var(--ink2)}
+.live.on{display:flex}
+.live .ldot{width:8px;height:8px;border-radius:50%;background:var(--green);position:relative}
+.live .ldot::after{content:'';position:absolute;inset:0;border-radius:50%;background:var(--green);animation:lpulse 1.8s ease-out infinite}
+@keyframes lpulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.6);opacity:0}}
+.live b{font-family:'Space Grotesk';color:var(--green);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* LOADING */
+.loading{display:none;max-width:580px;margin:18px auto 0}
+.loading.on{display:block}
+.abox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:28px;text-align:center}
+/* magnifier scan animation */
+.scan-stage{width:220px;height:130px;position:relative;margin:0 auto 22px}
+.scan-ad{position:absolute;inset:0;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:18px 16px;text-align:left;overflow:hidden}
+.scan-ad .ttl{display:block;height:9px;width:58%;border-radius:3px;background:var(--navy3);margin-bottom:12px}
+.scan-ad .ln{display:block;height:7px;border-radius:3px;background:#e7e2d8;margin-bottom:8px}
+.scan-ad .ln.a{width:90%}.scan-ad .ln.b{width:74%}.scan-ad .ln.c{width:82%}.scan-ad .ln.d{width:54%}
+/* warning sits at the spot the glass lands on; grows when "found" */
+.scan-warn{position:absolute;left:128px;top:74px;width:24px;height:24px;opacity:0;transform:scale(.2);transform-origin:center;animation:scanWarn 5.2s ease-in-out infinite}
+.scan-warn svg{width:100%;height:100%;display:block}
+@keyframes scanWarn{
+  0%,38%{opacity:0;transform:scale(.2)}
+  46%{opacity:1;transform:scale(.9)}
+  54%{opacity:1;transform:scale(1.5)}      /* funnet! vokser */
+  70%{opacity:1;transform:scale(1.35)}
+  80%{opacity:1;transform:scale(1.35)}
+  90%,100%{opacity:0;transform:scale(.2)}  /* resetter */
+}
+.scan-glass{position:absolute;width:60px;height:60px;left:0;top:0;animation:scanSweep 5.2s ease-in-out infinite}
+.scan-glass svg{width:100%;height:100%;filter:drop-shadow(0 3px 8px rgba(15,29,51,.18))}
+@keyframes scanSweep{
+  0%{transform:translate(14px,10px) rotate(-6deg)}
+  16%{transform:translate(120px,16px) rotate(5deg)}
+  30%{transform:translate(40px,54px) rotate(-4deg)}
+  46%{transform:translate(118px,58px) rotate(3deg)}   /* nærmer seg feilen */
+  54%{transform:translate(126px,62px) rotate(0deg)}   /* lander på feilen */
+  72%{transform:translate(126px,62px) rotate(0deg)}   /* holder mens den vokser */
+  88%{transform:translate(70px,30px) rotate(2deg)}
+  100%{transform:translate(14px,10px) rotate(-6deg)}
+}
+.amsg{font-family:'Space Grotesk';font-size:15px;font-weight:600;color:var(--navy);min-height:22px;transition:opacity .3s}
+.ptrack{height:6px;border-radius:4px;background:var(--paper2);overflow:hidden;margin:16px auto 0;max-width:320px}
+.pfill{height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--navy));transition:width .6s var(--ease)}
+.skel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:22px;margin-top:14px}
+.skl{height:13px;border-radius:6px;margin:11px 0;background:linear-gradient(90deg,#ece7dd 25%,#f5f1e9 37%,#ece7dd 63%);background-size:400% 100%;animation:shim 1.4s ease infinite}
+.skl.s{width:42%}.skl.m{width:68%}.skl.t{height:54px;border-radius:10px}
+@keyframes shim{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+/* CONTENT WRAP */
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.results{display:none}.results.on{display:block}
+
+/* section eyebrow w/ plate-tick */
+.sec-label{display:inline-flex;align-items:center;gap:10px;color:var(--ink3);margin-bottom:14px}
+.sec-label::before{content:'';width:18px;height:11px;border-radius:2px;background:var(--navy);box-shadow:inset -11px 0 0 -8px var(--green-bright)}
+
+/* REPORT NAV */
+.repnav{display:flex;gap:7px;flex-wrap:wrap;margin-top:30px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+.repnav a{font-family:'Space Grotesk';font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--navy);text-decoration:none;padding:7px 12px;border-radius:7px;background:var(--paper);white-space:nowrap;transition:.15s}
+.repnav a:hover{background:var(--green-light)}
+
+/* SCORE HERO */
+.res-hero{position:relative;text-align:center;padding:48px 24px 40px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md);margin-top:14px;overflow:hidden}
+.res-hero::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% -20%,rgba(47,158,95,.07),transparent 60%)}
+.res-eyebrow{color:var(--ink3);margin-bottom:16px}
+.score-plate{display:inline-flex;align-items:stretch;border:2.5px solid var(--ink);border-radius:11px;overflow:hidden;background:#fff;margin-bottom:6px}
+.score-plate .reg{background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 12px;font-family:'Space Grotesk';font-weight:600}
+.score-plate .reg .n{font-size:10px;letter-spacing:.12em;opacity:.7;text-transform:uppercase}
+.score-plate .reg .f{font-size:9px;margin-top:2px}
+.score-big{font-family:'Space Grotesk';font-size:clamp(58px,10vw,92px);font-weight:700;letter-spacing:-3px;line-height:1;padding:6px 22px}
+.res-label{font-family:'Space Grotesk';font-size:21px;font-weight:600;margin-top:12px;letter-spacing:-.3px}
+.res-blurb{font-size:15px;color:var(--ink2);margin-top:11px;max-width:430px;margin-left:auto;margin-right:auto}
+.rate{display:flex;align-items:center;gap:14px;max-width:330px;margin:24px auto 0;position:relative}
+.rate-track{flex:1;background:var(--paper2);border-radius:5px;height:7px;overflow:hidden}
+.rate-fill{height:7px;border-radius:5px;width:0;transition:width 1.2s var(--ease)}
+/* ===== DASHBOARD RESULT ===== */
+.dashboard{background:linear-gradient(180deg,#15243f,#0a1424);border-radius:16px;padding:20px;box-shadow:0 14px 36px rgba(15,29,51,.28);border:1px solid rgba(255,255,255,.07);margin-top:4px}
+.dash-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.dash-top .dt{font-family:'Space Grotesk';font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.42)}
+.dash-top .dbadge{font-family:'Space Grotesk';font-size:9px;letter-spacing:.08em;color:rgba(255,255,255,.32)}
+.dash-readout{background:#060d18;border-radius:13px;padding:18px 20px;display:flex;align-items:center;gap:20px;border:1px solid rgba(255,255,255,.05)}
+.dash-num{font-family:'Space Grotesk';font-weight:700;font-size:62px;line-height:.9;letter-spacing:-3px;font-variant-numeric:tabular-nums}
+.dash-rmeta{flex:1;min-width:0}
+.dash-rmeta .dlab{font-family:'Space Grotesk';font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:4px}
+.dash-rmeta .dstatus{font-family:'Space Grotesk';font-weight:600;font-size:18px;color:#fff;margin-bottom:10px}
+.dash-bars{display:flex;gap:3px;height:9px}
+.dash-bars i{flex:1;border-radius:1px;background:rgba(255,255,255,.08);transition:.25s}
+.dash-blurb{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:14px;line-height:1.5}
+.dash-lamps-t{font-family:'Space Grotesk';font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.32);margin:18px 2px 10px}
+.dlamp{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:7px;opacity:0;transform:translateX(12px);animation:lampIn .4s var(--ease) forwards}
+.dlamp .di{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:none}
+.dlamp.red .di{background:rgba(207,61,51,.16)}.dlamp.amber .di{background:rgba(199,132,27,.16)}.dlamp.green .di{background:rgba(47,158,95,.16)}
+.dlamp .di svg{width:19px;height:19px}
+.dlamp .db{flex:1;min-width:0}
+.dlamp .db b{font-family:'Space Grotesk';font-weight:600;font-size:13.5px;color:#fff;display:block;line-height:1.3}
+.dlamp .db span{font-size:12px;color:rgba(255,255,255,.5)}
+.dlamp .dcode{font-family:'Space Grotesk';font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;letter-spacing:.04em;flex:none}
+.dlamp.red .dcode{background:rgba(207,61,51,.2);color:#ff8077}.dlamp.amber .dcode{background:rgba(199,132,27,.2);color:#e8b65f}.dlamp.green .dcode{background:rgba(47,158,95,.2);color:#5fd391}
+@keyframes lampIn{to{opacity:1;transform:none}}
+.rate-pct{font-family:'Space Grotesk';font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
+
+.grid{margin-top:14px}
+@media(min-width:840px){.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}.grid .col{display:flex;flex-direction:column;gap:14px}.grid .full{grid-column:1/-1}}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+.card:hover{box-shadow:var(--sh-md)}
+.card h3{font-family:'Space Grotesk';font-size:16px;font-weight:600;letter-spacing:-.2px;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.card .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:14px}
+.card .d{font-size:13px;color:var(--ink2);margin-bottom:14px;margin-left:40px}
+.finding{display:flex;gap:12px;padding:13px 7px;border-radius:9px;transition:transform .18s,background .18s}
+.finding:hover{transform:translateX(3px);background:var(--paper)}
+.finding+.finding{border-top:1px solid var(--line)}
+.mk{width:25px;height:25px;border-radius:7px;flex:none;display:grid;place-items:center;font-size:13px;font-weight:800;margin-top:1px}
+.mk.bad{background:var(--red-light);color:var(--red)}.mk.warn{background:var(--amber-light);color:var(--amber)}.mk.ok{background:var(--green-light);color:var(--green)}
+.finding b{font-weight:600;font-size:14px}.finding p{color:var(--ink2);font-size:13px;margin-top:2px}
+.copybox{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:15px;font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+.legal .copybox{color:var(--ink2)}
+.copybtn{margin-top:12px;background:var(--navy);color:#fff;border-radius:var(--r);padding:11px 20px;font-size:13px;letter-spacing:.02em}
+.copybtn:hover{background:var(--navy2);transform:translateY(-1px)}
+.copybtn.done{background:var(--green)}
+.qrow{display:flex;gap:11px;padding:12px 0}.qrow+.qrow{border-top:1px solid var(--line)}
+.qn{width:25px;height:25px;border-radius:7px;background:var(--green-light);color:var(--green);font-family:'Space Grotesk';font-weight:700;font-size:12px;display:grid;place-items:center;flex:none;margin-top:1px}
+.qrow b{font-weight:600;font-size:14px}.qrow p{color:var(--ink2);font-size:13px;margin-top:2px}
+
+.offer{background:var(--navy);color:#fff;border-radius:var(--r-lg);padding:28px;position:relative;overflow:hidden}
+.offer::before{content:'';position:absolute;right:-40px;top:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(55,196,111,.28),transparent 70%)}
+.offer .tg{display:inline-block;background:rgba(255,255,255,.14);color:#fff;padding:5px 11px;border-radius:5px;margin-bottom:12px;position:relative}
+.offer h3{font-family:'Space Grotesk';font-weight:600;font-size:21px;line-height:1.2;letter-spacing:-.3px;margin-bottom:9px;position:relative}
+.offer p{font-size:14px;opacity:.88;margin-bottom:17px;position:relative}
+.offer a{display:inline-flex;align-items:center;gap:8px;background:var(--green-bright);color:#08230f;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:14.5px;padding:13px 24px;border-radius:var(--r);position:relative;transition:transform .18s}
+.offer a:hover{transform:translateY(-2px)}
+.restart{display:flex;align-items:center;gap:7px;margin:22px auto 56px;background:transparent;border:1.5px solid var(--line2);border-radius:var(--r);color:var(--ink2);font-size:13.5px;font-family:'Inter';font-weight:500;padding:12px 24px;cursor:pointer}
+.restart:hover{color:var(--ink);border-color:var(--ink2)}
+
+/* MARKETING SECTIONS */
+.section{padding:62px 0 8px}
+.section .head{text-align:center;margin-bottom:34px}
+.section h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(26px,4vw,36px);letter-spacing:-1px;margin-top:8px}
+.section .head p{color:var(--ink2);font-size:16px;margin-top:6px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s;position:relative}
+.step:hover{transform:translateY(-3px);box-shadow:var(--sh-md)}
+.step .num{position:absolute;top:18px;right:20px;font-family:'Space Grotesk';font-weight:700;font-size:13px;color:var(--line2)}
+.step .ib{width:64px;height:64px;border-radius:14px;background:var(--green-light);display:grid;place-items:center;margin-bottom:15px}
+.step h3{font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:6px;letter-spacing:-.2px}
+.step p{font-size:13.5px;color:var(--ink2)}
+
+.band{background:var(--navy);color:#fff;border-radius:var(--r-lg);overflow:hidden;display:grid;grid-template-columns:1fr 1fr;box-shadow:var(--sh-md);position:relative}
+.band .cell{padding:36px;text-align:center}
+.band .cell+.cell{border-left:1px solid rgba(255,255,255,.1)}
+.band .big{font-family:'Space Grotesk';font-weight:700;font-size:44px;letter-spacing:-1.5px;color:var(--green-bright)}
+.band .cap{opacity:.8;font-size:14px;margin-top:6px}
+@media(max-width:560px){.band{grid-template-columns:1fr}.band .cell+.cell{border-left:none;border-top:1px solid rgba(255,255,255,.1)}}
+
+.partner{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:30px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;box-shadow:var(--sh-md)}
+.partner .tg{display:inline-block;color:var(--green);background:var(--green-light);padding:5px 11px;border-radius:5px;margin-bottom:12px}
+.partner h3{font-family:'Space Grotesk';font-weight:600;font-size:21px;letter-spacing:-.3px;line-height:1.2;margin-bottom:8px}
+.partner p{font-size:14.5px;color:var(--ink2)}
+.partner a{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:14.5px;padding:15px 24px;border-radius:var(--r);transition:.18s}
+.partner a:hover{background:var(--navy2);transform:translateY(-2px)}
+
+.faq{max-width:640px;margin:0 auto}
+details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:9px;overflow:hidden;box-shadow:var(--sh)}
+summary{padding:17px 20px;font-weight:600;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+';font-size:21px;color:var(--green);font-weight:400}
+details[open] summary::after{content:'–'}
+details p{padding:0 20px 17px;color:var(--ink2);font-size:14px;line-height:1.7}
+.disc{font-size:12px;color:var(--ink3);background:var(--paper2);border-radius:var(--r);padding:14px 16px;margin-top:18px;line-height:1.6}
+footer{margin-top:46px;background:var(--navy);color:rgba(255,255,255,.6)}
+footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px;font-size:13px}
+
+.sr{opacity:0;transform:translateY(24px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.sr.in{opacity:1;transform:none}
+.rv{opacity:0;animation:rvUp .55s var(--ease) forwards}
+@keyframes rvUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:999;pointer-events:none;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.15}}
+
+@media(max-width:720px){.steps{grid-template-columns:1fr}}
+
+/* ===== HVA KVITTN SJEKKER ===== */
+.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+@media(max-width:720px){.scan-grid{grid-template-columns:1fr}}
+.scheck{display:flex;gap:14px;padding:22px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh);transition:transform .2s,box-shadow .2s}
+.scheck:hover{transform:translateY(-3px);box-shadow:var(--sh-md)}
+.scheck .si{width:46px;height:46px;border-radius:12px;flex:none;display:grid;place-items:center;background:var(--green-light)}
+.scheck .si svg{width:23px;height:23px}
+.scheck h4{font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:5px;letter-spacing:-.2px}
+.scheck p{font-size:13.5px;color:var(--ink2);line-height:1.55}
+.scheck .ex{display:inline-block;margin-top:9px;font-family:'Space Grotesk';font-size:11px;font-weight:600;letter-spacing:.04em;padding:3px 9px;border-radius:6px;background:var(--paper2);color:var(--ink2)}
+.scheck .ex.bad{background:var(--red-light);color:var(--red)}
+
+/* ===== OM REKLAMASJONSRISIKO ===== */
+.rek-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-md)}
+.rek-tl{display:grid;grid-template-columns:repeat(3,1fr)}
+@media(max-width:760px){.rek-tl{grid-template-columns:1fr}}
+.rek-step{padding:28px 24px;border-right:1px solid var(--line);position:relative}
+.rek-step:last-child{border-right:none}
+@media(max-width:760px){.rek-step{border-right:none;border-bottom:1px solid var(--line)}.rek-step:last-child{border-bottom:none}}
+.rek-step .rk-num{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk';font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:14px}
+.rek-step .rk-num b{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;background:var(--paper);border:1.5px solid var(--line2);color:var(--ink);font-size:12px}
+.rek-step.danger .rk-num b{border-color:rgba(207,61,51,.5);color:var(--red);background:var(--red-light)}
+.rek-step.safe .rk-num b{border-color:rgba(47,158,95,.5);color:var(--green);background:var(--green-light)}
+.rek-step h4{font-family:'Space Grotesk';font-size:18px;font-weight:600;letter-spacing:-.3px;margin-bottom:8px}
+.rek-step p{font-size:13.5px;color:var(--ink2);line-height:1.55}
+.rek-step .rk-law{margin-top:13px;padding-top:11px;border-top:1px dashed var(--line2);font-family:'Space Grotesk';font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.rek-foot{display:flex;align-items:center;gap:16px;padding:22px 26px;background:var(--paper2);border-top:1px solid var(--line);flex-wrap:wrap}
+.rek-foot .rk-shield{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--green-light)}
+.rek-foot .rk-shield svg{width:23px;height:23px}
+.rek-foot p{font-size:14px;color:var(--ink2);flex:1;min-width:240px}
+.rek-foot p b{color:var(--ink)}
+.rek-cta{text-align:center;margin-top:32px}
+.rek-cta a{display:inline-flex;align-items:center;gap:9px;background:var(--green);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 28px;border-radius:var(--r);box-shadow:0 2px 12px rgba(47,158,95,.34);transition:.18s}
+.rek-cta a:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 8px 22px rgba(47,158,95,.42)}
+
+/* ===== SUBPAGES (egne "sider" i samme fil) ===== */
+.learn-links{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+@media(max-width:680px){.learn-links{grid-template-columns:1fr}}
+.learn-link{display:flex;align-items:center;gap:15px;padding:18px 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);text-decoration:none;transition:transform .18s,box-shadow .18s,border-color .18s;cursor:pointer}
+.learn-link:hover{transform:translateY(-2px);box-shadow:var(--sh-md);border-color:var(--green-mid)}
+.learn-link .ll-ic{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--green-light)}
+.learn-link .ll-ic svg{width:21px;height:21px}
+.learn-link .ll-txt{flex:1;min-width:0}
+.learn-link .ll-txt b{display:block;font-family:'Space Grotesk';font-size:15px;font-weight:600;color:var(--ink);letter-spacing:-.2px}
+.learn-link .ll-txt span{font-size:13px;color:var(--ink2)}
+.learn-link .ll-arr{width:20px;height:20px;flex:none;transition:transform .18s}
+.learn-link:hover .ll-arr{transform:translateX(3px)}
+.subpage{display:none}
+body.sub-sjekker .home-only,body.sub-reklamasjon .home-only{display:none!important}
+body.sub-sjekker #page-sjekker{display:block}
+body.sub-reklamasjon #page-reklamasjon{display:block}
+.subpage-hero{background:var(--navy);color:#fff;padding:30px 0 40px;position:relative;overflow:hidden}
+.subpage-hero .wrap{position:relative;z-index:2}
+.backlink{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;transition:.15s;cursor:pointer;margin-bottom:24px}
+.backlink:hover{background:rgba(255,255,255,.14);transform:translateX(-2px)}
+.backlink svg{width:15px;height:15px}
+.subpage-hero .sp-eyebrow{color:var(--green-bright);margin-bottom:14px;display:inline-flex;align-items:center;gap:9px}
+.subpage-hero .sp-eyebrow::before{content:'';width:24px;height:1px;background:rgba(55,196,111,.5)}
+.subpage-hero h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(28px,5vw,44px);line-height:1.08;letter-spacing:-1px;margin-bottom:14px;max-width:680px}
+.subpage-hero .sp-sub{font-size:17px;color:rgba(255,255,255,.72);max-width:560px;line-height:1.6}
+.subpage-body{padding:48px 0 20px}
+.subpage-cta{text-align:center;padding:10px 0 60px}
+.subpage-cta a{display:inline-flex;align-items:center;gap:9px;background:var(--green);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 28px;border-radius:var(--r);box-shadow:0 2px 12px rgba(47,158,95,.34);transition:.18s;cursor:pointer}
+.subpage-cta a:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 8px 22px rgba(47,158,95,.42)}
+
+/* RESULT MODE — skjuler landingssiden, fokusert visning */
+body.result-mode .landing{display:none!important}
+body.result-mode #inputPanel{display:none!important}
+body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
+.res-shell{max-width:680px;margin:0 auto;padding:40px 0 20px}
+.res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.res-kicker{color:var(--ink3)}
+.wizard-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md);padding:30px;min-height:380px;display:flex;flex-direction:column}
+.wizard-card .body{flex:1}
+.wizard-dots{display:flex;gap:7px;justify-content:center;margin-top:18px}
+.wizard-dot{width:8px;height:8px;border-radius:50%;background:var(--line2);transition:.25s}
+.wizard-dot.on{background:var(--green);transform:scale(1.25)}
+.wizard-dot.done{background:var(--green-mid)}
+.wizard-nav{display:flex;gap:12px;margin-top:20px}
+.wizard-nav .back{background:transparent;border:1.5px solid var(--line2);color:var(--ink2);border-radius:var(--r);padding:13px 22px;font-family:'Space Grotesk';font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+.wizard-nav .back:hover{border-color:var(--ink2);color:var(--ink)}
+.wizard-nav .fwd{flex:1;background:var(--green);color:#fff;border:none;border-radius:var(--r);padding:13px;font-family:'Space Grotesk';font-weight:600;font-size:15px;cursor:pointer;transition:.18s;display:flex;align-items:center;justify-content:center;gap:8px}
+.wizard-nav .fwd:hover{background:var(--green-bright);transform:translateY(-1px)}
+.wstep{animation:rvUp .4s var(--ease)}
+.wstep.in-right{animation:slideInR .42s var(--ease)}
+.wstep.in-left{animation:slideInL .42s var(--ease)}
+@keyframes slideInR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes slideInL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
+/* premium tekstboks: dokument med Kvittn-skilt-vannmerke + venstre fargekant */
+.simcard{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-radius:12px;padding:20px 20px 16px;margin-top:4px}
+.simrow{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:10px 0;border-bottom:1px dashed var(--line2)}
+.simrow:last-of-type{border-bottom:none}
+.simlab{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.simval{font-family:'Space Grotesk';font-weight:700;font-size:18px}
+.simbig{font-family:'Space Grotesk';font-weight:700;font-size:30px;line-height:1;text-shadow:0 0 16px currentColor}
+.simwhy{margin:12px 0 0;font-size:14px;color:var(--ink2);line-height:1.55}
+.simnote{margin-top:12px;font-size:12px;color:var(--ink3);line-height:1.5}
+.mailwrap{margin-top:14px}
+.mailtoggle{width:100%;background:transparent;border:1.5px dashed var(--line2);color:var(--ink2);font-family:'Inter';font-weight:600;font-size:14px;padding:12px;border-radius:var(--r);cursor:pointer;transition:.15s}
+.mailtoggle:hover{background:var(--paper);color:var(--ink)}
+.mailtoggle.open{border-style:solid;border-color:var(--green);color:var(--green)}
+.mailbox{max-height:0;overflow:hidden;transition:max-height .28s ease;margin-top:0}
+.mailbox.open{max-height:220px;margin-top:12px}
+.maillead{font-size:13px;color:var(--ink2);margin:0 0 10px}
+.mailrow{display:flex;gap:8px}
+.mailrow input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);font-family:'Inter';font-size:15px}
+.mailrow input:focus{outline:none;border-color:var(--green)}
+.mailsend{flex:0 0 auto;padding:12px 20px}
+.mailstatus{font-size:13px;margin:10px 0 0;min-height:18px}
+.mailstatus.ok{color:var(--green)}
+.mailstatus.err{color:#cf3d33}
+.docbox{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:10px;padding:18px 18px 16px;overflow:hidden}
+.docbox::after{content:'KVITTN';position:absolute;right:-6px;bottom:-10px;font-family:'Space Grotesk';font-weight:700;font-size:46px;letter-spacing:.06em;color:var(--ink);opacity:.035;pointer-events:none}
+.docbox .doc-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:11px;border-bottom:1px dashed var(--line2)}
+.docbox .doc-dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.docbox .doc-head .lbl{color:var(--ink3)}
+.docbox .doc-text{font-size:13.5px;line-height:1.65;color:var(--ink);white-space:pre-wrap;position:relative;z-index:1}
+.legal .docbox .doc-text{color:var(--ink2)}
+/* les mer */
+.clip{position:relative;max-height:150px;overflow:hidden;transition:max-height .4s var(--ease)}
+.clip.open{max-height:1400px}
+.clip:not(.open)::after{content:'';position:absolute;left:0;right:0;bottom:0;height:54px;background:linear-gradient(transparent,#fff)}
+.lesmer{margin-top:8px;background:transparent;border:none;color:var(--green);font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:5px}
+.lesmer:hover{color:var(--green-bright)}
+.lesmer .arr{transition:transform .25s}
+.lesmer.open .arr{transform:rotate(180deg)}
+.wstep .step-eyebrow{display:flex;align-items:center;gap:9px;color:var(--ink3);margin-bottom:14px}
+.wstep .step-eyebrow .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
+.wstep h3{font-family:'Space Grotesk';font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:6px}
+.wstep .lead{font-size:14px;color:var(--ink2);margin-bottom:18px}
+.wstep .body{flex:1}
+@media(prefers-reduced-motion:reduce){*:not(.scan-glass):not(.scan-warn),*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.sr,.rv{opacity:1;transform:none}.scan-glass,.scan-warn{animation-duration:5.2s!important;animation-iteration-count:infinite!important}}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <canvas id="splashCv"></canvas>
+  <div class="splash-mark" id="splashMark">
+    <svg height="72" viewBox="0 0 200 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="196" height="44" rx="10" fill="#101a2c"/><rect x="5" y="13" width="190" height="38" rx="7.5" fill="#fff"/><path d="M5 20.5C5 16.36 8.36 13 12.5 13H44V51H12.5C8.36 51 5 47.64 5 43.5V20.5Z" fill="#0a3aa0"/><g transform="translate(15.5 19)"><rect width="18" height="13" rx="1" fill="#ba0c2f"/><rect x="5" width="3.4" height="13" fill="#fff"/><rect y="5" width="18" height="3.4" fill="#fff"/><rect x="5.8" width="1.8" height="13" fill="#00205b"/><rect y="5.8" width="18" height="1.8" fill="#00205b"/></g><text x="24.5" y="46" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="9.5" fill="#fff">N</text><text x="120" y="39" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="22" letter-spacing="1.5" fill="#101a2c">KVITTN</text><circle cx="188" cy="14" r="10" fill="#37c46f" stroke="#0f1d33" stroke-width="2"/><path d="M183.5 14l3 3 6-6.4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+</div>
+
+<nav><div class="row">
+  <a href="#top" class="home" id="navLogo" onclick="goHome(event)"></a>
+  <div class="nav-right">
+    <a href="#/sjekker" class="nav-link lbl" onclick="goPage('sjekker',event)">Hva Kvittn sjekker</a>
+    <a href="#/reklamasjon" class="nav-link lbl" onclick="goPage('reklamasjon',event)">Om reklamasjonsrisiko</a>
+    <span class="nav-tag lbl">Gratis verktøy</span>
+  </div>
+</div></nav>
+
+<a id="top"></a>
+<header class="hero landing home-only">
+  <canvas id="heroCv"></canvas>
+  <div class="hero-wave"><svg viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 60 L0 30 Q 300 0 600 28 T 1200 26 L1200 60 Z" fill="#F6F4EF"/></svg></div>
+  <div class="wrap">
+    <span class="hero-eyebrow lbl">For deg som selger bil privat</span>
+    <h1>Slipp at kjøperen<br>kommer <span class="hl">tilbake</span></h1>
+    <p class="sub">Lim inn annonsen din, så sjekker Kvittn hvor godt den beskytter deg mot reklamasjon — og gir deg teksten som tetter hullene. Bli kvittn, trygt.</p>
+  </div>
+</header>
+
+<div class="checker-wrap home-only">
+  <div class="checker" id="inputPanel">
+    <div class="top"><b>Sjekk annonsen din</b><span class="lbl">Ingen innlogging</span></div>
+    <label class="flabel lbl">Lim inn FINN-lenke <span class="soon">Kommer snart</span></label>
+    <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/..." disabled>
+    <p class="hint">Automatisk henting fra FINN er på vei. Inntil videre: lim inn teksten under.</p>
+    <div class="or lbl"><span>eller lim inn teksten selv</span></div>
+    <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
+    <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
+    <button class="btn go" id="goBtn" onclick="analyze()">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sjekk annonsen min
+    </button>
+    <div class="trust">
+      <span><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>100% gratis</span>
+      <span><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>15 sekunder</span>
+      <span><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Vi lagrer ingenting</span>
+    </div>
+    <div class="counter" id="counter"></div>
+    <div class="live" id="live"></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="abox">
+      <div class="scan-stage">
+        <div class="scan-ad"><span class="ttl"></span><span class="ln a"></span><span class="ln b"></span><span class="ln c"></span><span class="ln d"></span></div>
+        <div class="scan-warn" id="scanWarn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" fill="#faedd6" stroke="#c7841b" stroke-width="1.6" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14" stroke="#c7841b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1" fill="#c7841b"/></svg></div>
+        <div class="scan-glass"><svg viewBox="0 0 74 74" fill="none"><circle cx="30" cy="30" r="22" fill="rgba(47,158,95,0.08)" stroke="#2f9e5f" stroke-width="3"/><line x1="46" y1="46" x2="64" y2="64" stroke="#2f9e5f" stroke-width="5" stroke-linecap="round"/></svg></div>
+      </div>
+      <p class="amsg" id="loadMsg">Henter FINN-annonsen...</p><div class="ptrack"><div class="pfill" id="pfill"></div></div>
+    </div>
+    <div class="skel"><div class="skl s"></div><div class="skl m"></div><div class="skl"></div><div class="skl t"></div><div class="skl m"></div></div>
+  </div>
+</div>
+
+<div class="wrap home-only"><div class="results" id="results"></div></div>
+
+<section class="section landing home-only" id="howSec"><div class="wrap">
+  <div class="head"><span class="sec-label lbl">Slik fungerer det</span><h2>Tre steg, ingen innlogging</h2></div>
+  <div class="steps">
+    <div class="step"><span class="num">01</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="11" y="9" width="26" height="32" rx="4" fill="#fff" stroke="#0f1d33" stroke-width="2.4"/><line x1="16" y1="18" x2="32" y2="18" stroke="#2f9e5f" stroke-width="2.2" stroke-linecap="round"/><line x1="16" y1="24" x2="32" y2="24" stroke="#c9d6e8" stroke-width="2.2" stroke-linecap="round"/><line x1="16" y1="30" x2="27" y2="30" stroke="#c9d6e8" stroke-width="2.2" stroke-linecap="round"/><path d="M24 2v9M24 11l-3.5-3.5M24 11l3.5-3.5" stroke="#2f9e5f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Lim inn annonsen</h3><p>Lenke fra FINN, eller bare kopier teksten.</p></div>
+    <div class="step"><span class="num">02</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><path d="M8 30l2.5-7A4 4 0 0114 20.5h13A4 4 0 0131 23l2.5 7M8 30h26M8 30v5m26-5v5M12 35h3m16 0h3" stroke="#0f1d33" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33" cy="30" r="8.5" fill="#fff" stroke="#2f9e5f" stroke-width="2.4"/><line x1="39" y1="36" x2="44" y2="41" stroke="#2f9e5f" stroke-width="2.6" stroke-linecap="round"/><path d="M33 26.5v3M33 32.5v.5" stroke="#cf3d33" stroke-width="2.2" stroke-linecap="round"/></svg></div><h3>Vi finner hullene</h3><p>Sjekker forbehold og risiko — det du ikke ser selv.</p></div>
+    <div class="step"><span class="num">03</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><path d="M24 6l13 5v9c0 8.5-5.5 14-13 17-7.5-3-13-8.5-13-17v-9l13-5z" fill="#fff" stroke="#0f1d33" stroke-width="2.4" stroke-linejoin="round"/><path d="M17 24l5 5 9-10" stroke="#2f9e5f" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Trygg å selge</h3><p>Få forbeholdstekst og bedre annonse, klar til publisering.</p></div>
+  </div>
+  <div class="learn-links">
+    <a class="learn-link" href="#/sjekker" onclick="goPage('sjekker',event)">
+      <div class="ll-ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="ll-txt"><b>Hva Kvittn sjekker</b><span>De fire tingene analysen ser etter</span></div>
+      <svg class="ll-arr" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#46546b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a class="learn-link" href="#/reklamasjon" onclick="goPage('reklamasjon',event)">
+      <div class="ll-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/></svg></div>
+      <div class="ll-txt"><b>Om reklamasjonsrisiko</b><span>Hvorfor salget ikke er over når pengene er på konto</span></div>
+      <svg class="ll-arr" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#46546b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+</div></section>
+
+<section class="section landing home-only"><div class="wrap">
+  <div class="band">
+    <div class="cell"><div class="big">2 år</div><div class="cap">har du reklamasjonsansvar etter et privatsalg</div></div>
+    <div class="cell"><div class="big">1 av 3</div><div class="cap">privatannonser mangler et gyldig forbehold</div></div>
+  </div>
+</div></section>
+
+<section class="section landing home-only"><div class="wrap">
+  <div class="head"><span class="sec-label lbl">Spørsmål</span><h2>Ofte stilte spørsmål</h2></div>
+  <div class="faq">
+    <details><summary>Er Kvittn gratis?</summary><p>Ja. Lim inn annonsen din, så får du analysen. Ingen innlogging, ingenting å betale.</p></details>
+    <details><summary>Hva betyr trygghetsscoren?</summary><p>Den sier hvor godt annonsen din beskytter deg mot at kjøperen kommer tilbake og krever penger etter salget. Høyere score betyr færre åpne hull.</p></details>
+    <details><summary>Fjerner dette reklamasjonsansvaret mitt?</summary><p>Nei. Ved privatsalg har du opplysningsplikt og et visst ansvar i to år, og «solgt som den er» fritar deg ikke helt. Kvittn hjelper deg å opplyse riktig og ta gode forbehold.</p></details>
+    <details><summary>Hva om jeg heller vil slippe hele ansvaret?</summary><p>Da kan du selge til en profesjonell aktør, som overtar reklamasjonsansvaret. Du får som regel litt mindre betalt, men slipper risiko og bryderi.</p></details>
+  </div>
+  <div class="disc">Kvittn gir generell informasjon, ikke juridisk rådgivning. Ved privatsalg gjelder kjøpsloven (ikke forbrukerkjøpsloven). Du har opplysningsplikt om kjente feil, og «solgt som den er» fritar deg ikke for ansvar hvis du har holdt tilbake informasjon. Ved tvil, kontakt en jurist.</div>
+</div></section>
+
+<!-- ===== UNDERSIDE: Hva Kvittn sjekker ===== -->
+<div class="subpage" id="page-sjekker">
+  <div class="subpage-hero">
+    <div class="wrap">
+      <span class="backlink" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tilbake</span>
+      <div class="sp-eyebrow lbl">Analysen</div>
+      <h1>Hva Kvittn faktisk ser etter</h1>
+      <p class="sp-sub">Kvittn leser annonsen som en kjøper med advokat ved siden av seg — og finner det du burde ha sagt før noen andre gjør det.</p>
+    </div>
+  </div>
+  <div class="subpage-body"><div class="wrap">
+    <div class="scan-grid">
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.1" fill="#2f9e5f"/></svg></div><div><h4>Risiko-formuleringer</h4><p>«Som ny», «feilfri» eller «alt fungerer» kan tolkes som garanti du gir kjøperen. Kvittn fanger dem og foreslår tryggere ordlyd som sier det samme uten å binde deg.</p><span class="ex bad">«som ny» → flagget</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h4>Manglende forbehold</h4><p>«Selges som den er» er ikke nok alene etter dagens regler. Kvittn skriver et forbehold som faktisk holder, tilpasset bilen og annonsen din.</p><span class="ex bad">mangler forbehold</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div><div><h4>Det du glemte å nevne</h4><p>Kjente feil du ikke har opplyst om er den vanligste grunnen til at kjøpere kommer tilbake. Kvittn spør om akkurat det kjøperen kommer til å spørre om.</p><span class="ex">opplysningsplikt</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/></svg></div><div><h4>Spørsmål kjøperen vil stille</h4><p>Du får en liste over det kjøpere typisk graver i — så du kan svare ærlig i annonsen og slippe diskusjonen på visning.</p><span class="ex">5 spørsmål</span></div></div>
+    </div>
+  </div></div>
+  <div class="subpage-cta"><a onclick="goPage('home');setTimeout(function(){document.getElementById('annonseTekst').focus();},400)">Sjekk min annonse gratis
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+</div>
+
+<!-- ===== UNDERSIDE: Om reklamasjonsrisiko ===== -->
+<div class="subpage" id="page-reklamasjon">
+  <div class="subpage-hero">
+    <div class="wrap">
+      <span class="backlink" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tilbake</span>
+      <div class="sp-eyebrow lbl">Hvorfor det gjelder deg</div>
+      <h1>Salget er ikke over når pengene er på konto</h1>
+      <p class="sp-sub">Selger du bil privat, kan kjøperen komme tilbake i opptil to år. Slik kan en helt vanlig handel bli et krav — og her er hvor Kvittn stopper det.</p>
+    </div>
+  </div>
+  <div class="subpage-body"><div class="wrap">
+    <div class="rek-card">
+      <div class="rek-tl">
+        <div class="rek-step">
+          <div class="rk-num"><b>1</b>Salget</div>
+          <h4>Du selger «som den er»</h4>
+          <p>Du tror det dekker deg. Men en bil kan fortsatt ha en «vesentlig mangel» i lovens forstand — selv med den setningen i annonsen.</p>
+          <div class="rk-law">Kjøpsloven · privatsalg</div>
+        </div>
+        <div class="rek-step danger">
+          <div class="rk-num"><b>2</b>Kravet</div>
+          <h4>Kjøper finner en feil</h4>
+          <p>Noe ryker etter en måned. Kjøper mener du burde sagt fra, eller at annonsen lovet for mye. Nå handler det om hva som faktisk stod skrevet.</p>
+          <div class="rk-law">Reklamasjon · inntil 2 år</div>
+        </div>
+        <div class="rek-step safe">
+          <div class="rk-num"><b>3</b>Beskyttelsen</div>
+          <h4>Kvittn ga deg dekning</h4>
+          <p>Med riktig forbehold og en ærlig, presis annonse står du støtt. Du opplyste, du tok forbehold — og det er dokumentert.</p>
+          <div class="rk-law">Forbehold · skriftlig</div>
+        </div>
+      </div>
+      <div class="rek-foot">
+        <div class="rk-shield"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <p><b>Kvittn er ikke en garanti — det er en brannmur.</b> Du kan ikke fjerne all risiko ved privatsalg, men du kan fjerne den unødvendige. Det er den Kvittn tar.</p>
+      </div>
+    </div>
+  </div></div>
+  <div class="subpage-cta"><a onclick="goPage('home');setTimeout(function(){document.getElementById('annonseTekst').focus();},400)">Sjekk min annonse gratis
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+</div>
+
+<footer class="landing"><div class="row">
+  <svg height="34" viewBox="0 0 200 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="196" height="44" rx="10" fill="#101a2c"/><rect x="5" y="13" width="190" height="38" rx="7.5" fill="#fff"/><path d="M5 20.5C5 16.36 8.36 13 12.5 13H44V51H12.5C8.36 51 5 47.64 5 43.5V20.5Z" fill="#0a3aa0"/><g transform="translate(15.5 19)"><rect width="18" height="13" rx="1" fill="#ba0c2f"/><rect x="5" width="3.4" height="13" fill="#fff"/><rect y="5" width="18" height="3.4" fill="#fff"/><rect x="5.8" width="1.8" height="13" fill="#00205b"/><rect y="5.8" width="18" height="1.8" fill="#00205b"/></g><text x="24.5" y="46" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="9.5" fill="#fff">N</text><text x="120" y="39" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="22" letter-spacing="1.5" fill="#101a2c">KVITTN</text><circle cx="188" cy="14" r="10" fill="#37c46f" stroke="#0f1d33" stroke-width="2"/><path d="M183.5 14l3 3 6-6.4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span class="lbl">Sjekk annonsen før du selger · Analysen lagres ikke</span>
+</div></footer>
+
+<script>
+const GREEN="#2f9e5f",AMBER="#c7841b",RED="#cf3d33";
+const C={greenBg:"#e4f3ea",amberBg:"#f9edd6",redBg:"#fbe6e4"};
+const SUPABASE_URL="https://anzyovvfyepdonlxyxzc.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuenlvdnZmeWVwZG9ubHh5eHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTM4MTMsImV4cCI6MjA5NzM2OTgxM30.UMeP9ES9Y4_x_BxZUKVssDLOBNGMIhhc_JtgO50MVaE";
+let sb=null;try{if(SUPABASE_URL.indexOf("http")===0&&window.supabase&&window.supabase.createClient){sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}}catch(e){sb=null;}
+
+// clickable nav logo (plate)
+document.getElementById('navLogo').innerHTML='<svg height="36" viewBox="0 0 200 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="196" height="44" rx="10" fill="#101a2c"/><rect x="5" y="13" width="190" height="38" rx="7.5" fill="#fff"/><path d="M5 20.5C5 16.36 8.36 13 12.5 13H44V51H12.5C8.36 51 5 47.64 5 43.5V20.5Z" fill="#0a3aa0"/><g transform="translate(15.5 19)"><rect width="18" height="13" rx="1" fill="#ba0c2f"/><rect x="5" width="3.4" height="13" fill="#fff"/><rect y="5" width="18" height="3.4" fill="#fff"/><rect x="5.8" width="1.8" height="13" fill="#00205b"/><rect y="5.8" width="18" height="1.8" fill="#00205b"/></g><text x="24.5" y="46" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="9.5" fill="#fff">N</text><text x="120" y="39" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="22" letter-spacing="1.5" fill="#101a2c">KVITTN</text><circle cx="188" cy="14" r="10" fill="#37c46f" stroke="#0f1d33" stroke-width="2"/><path d="M183.5 14l3 3 6-6.4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// splash + hero canvas (shared line-field)
+// slow glowing gradient streaks (rolig, ambient)
+function lineField(cv,color){
+  const ctx=cv.getContext('2d');let lines=[],W,H;
+  function rs(){W=cv.width=cv.offsetWidth;H=cv.height=cv.offsetHeight;}rs();window.addEventListener('resize',rs);
+  function mk(){return{x:Math.random()*W,y:Math.random()*H,len:120+Math.random()*260,a:(Math.random()*.5-.25),sp:.06+Math.random()*.12,life:0,max:280+Math.random()*260,al:.04+Math.random()*.07};}
+  for(let i=0;i<16;i++){const l=mk();l.life=Math.random()*l.max;lines.push(l);}
+  let on=true;
+  (function d(){if(!on)return;ctx.clearRect(0,0,W,H);ctx.fillStyle='#0f1d33';ctx.fillRect(0,0,W,H);
+    lines.forEach((l,i)=>{l.life++;const h=l.max/2;const al=l.life<h?(l.life/h)*l.al:((l.max-l.life)/h)*l.al;if(l.life>=l.max)lines[i]=mk();
+      l.x+=Math.cos(l.a)*l.sp;l.y+=Math.sin(l.a)*l.sp;
+      const x2=l.x+Math.cos(l.a)*l.len,y2=l.y+Math.sin(l.a)*l.len;
+      const g=ctx.createLinearGradient(l.x,l.y,x2,y2);
+      g.addColorStop(0,'rgba(55,196,111,0)');g.addColorStop(.5,'rgba(55,196,111,'+al+')');g.addColorStop(1,'rgba(55,196,111,0)');
+      ctx.save();ctx.strokeStyle=g;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+    });requestAnimationFrame(d);})();
+  return ()=>{on=false;};
+}
+lineField(document.getElementById('heroCv'),'#37c46f');
+const stopSplash=lineField(document.getElementById('splashCv'),'#37c46f');
+setTimeout(()=>document.getElementById('splashMark').classList.add('show'),350);
+setTimeout(()=>{document.getElementById('splash').classList.add('gone');stopSplash();},2300);
+
+async function loadCounter(){if(!sb)return;try{const{data,error}=await sb.from('teller').select('antall_sjekket').eq('id',1).single();if(error)return;if(data&&data.antall_sjekket!=null){document.getElementById('counter').innerHTML='<b>'+Number(data.antall_sjekket).toLocaleString('nb-NO')+'</b> annonser sjekket';}}catch(e){}}
+async function bumpCounter(){if(!sb)return;try{await sb.rpc('inc_sjekket');}catch(e){}}
+loadCounter();
+
+// ---- Live viewers (Supabase Realtime Presence) ----
+(function(){
+  if(!sb)return;
+  let ch;
+  try{
+    ch=sb.channel('kvitt-live',{config:{presence:{key:Math.random().toString(36).slice(2)}}});
+    ch.on('presence',{event:'sync'},()=>{
+      const state=ch.presenceState();
+      const n=Object.keys(state).length;
+      const el=document.getElementById('live');
+      if(!el)return;
+      if(n>=2){
+        el.innerHTML='<span class="ldot"></span><span><b>'+n+'</b> sjekker en annonse akkurat nå</span>';
+        el.classList.add('on');
+      }else{
+        el.classList.remove('on');
+      }
+    });
+    ch.subscribe(async(status)=>{ if(status==='SUBSCRIBED'){ await ch.track({t:Date.now()}); } });
+  }catch(e){}
+})();
+
+const LM=["Henter FINN-annonsen...","Analyserer juridisk risiko...","Identifiserer manglende opplysninger...","Vurderer reklamasjonsrisiko...","Genererer anbefalinger..."];
+let mt,pt;
+function setLoading(on,first){
+  document.getElementById('loading').classList.toggle('on',on);
+  const f=document.getElementById('pfill');
+  if(on){let i=0;document.getElementById('loadMsg').textContent=first||LM[0];if(f)f.style.width='8%';
+    mt=setInterval(()=>{i=(i+1)%LM.length;const e=document.getElementById('loadMsg');e.style.opacity=0;setTimeout(()=>{e.textContent=LM[i];e.style.opacity=1;},200);},1600);
+    let p=8;pt=setInterval(()=>{p=Math.min(p+Math.random()*12,90);if(f)f.style.width=p+'%';},700);
+  }else{clearInterval(mt);clearInterval(pt);if(f)f.style.width='100%';}
+}
+function fillExample(){document.getElementById('annonseTekst').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";document.getElementById('annonseTekst').focus();}
+
+async function analyze(){
+  let text="";
+  const url=(document.getElementById('finnUrl').value||"").trim();
+  const typed=(document.getElementById('annonseTekst').value||"").trim();
+  const ip=document.getElementById('inputPanel');
+  function showInput(){ip.style.display='';setLoading(false);}
+  function hideInput(){ip.style.display='none';}
+  if(url){
+    if(!/finn\.no/i.test(url)){alert("Lim inn en gyldig FINN-lenke, eller bruk tekstfeltet under.");return;}
+    hideInput();setLoading(true,"Henter annonsen fra FINN...");
+    try{const r=await fetch('/api/hent-finn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});const d=await r.json();
+      if(!r.ok||!d.text){showInput();alert((d.error||"Klarte ikke å hente annonsen.")+" Lim inn teksten i feltet i stedet.");return;}text=d.text;
+    }catch(e){showInput();alert("Klarte ikke å hente annonsen. Lim inn teksten i feltet i stedet.");return;}
+  }else if(typed.length>=25){text=typed;hideInput();}
+  else{alert("Lim inn en FINN-lenke øverst, eller lim inn annonseteksten i feltet under.");return;}
+  document.getElementById('results').classList.remove('on');document.getElementById('results').innerHTML='';
+  setLoading(true,"Leser gjennom annonsen din...");
+  try{const res=await fetch('/api/analyser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    if(!res.ok){const e=await res.json().catch(()=>({}));const msg=e.error||('Serverfeil '+res.status);const err=new Error(msg);err.userMsg=(res.status===429);throw err;}
+    const r=await res.json();render(r);bumpCounter();loadCounter();
+  }catch(e){showInput();console.error(e);alert(e.userMsg?e.message:"Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
 }
 
-function browserHeaders(url) {
-  return {
-    "User-Agent":
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-    "Accept":
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "nb-NO,nb;q=0.9,no;q=0.8,nn;q=0.7,en;q=0.6",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
-    "Referer": "https://www.finn.no/",
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function colorFor(s){return s>=70?GREEN:s>=45?AMBER:RED}
+
+let WIZ={steps:[],i:0,score:0,col:GREEN};
+function render(r){
+  window.__analyse=r;
+  setLoading(false);
+  document.body.classList.add('result-mode');
+  const score=Math.max(0,Math.min(100,r.score)),col=colorFor(score);
+  WIZ.score=score;WIZ.col=col;WIZ.i=0;
+
+  const flags=(r.flags||[]).map((f)=>{const sym=f.level==='ok'?'✓':f.level==='warn'?'!':'×';return '<div class="finding"><span class="mk '+f.level+'">'+sym+'</span><div><b>'+esc(f.title)+'</b><p>'+esc(f.detail)+'</p></div></div>';}).join('');
+  const qs=(r.questions||[]).map((q,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
+
+  // bygg stegene
+  const steps=[];
+  // dashboard: digital readout + warning lamps
+  const lampIcons={
+    bad:'<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l1.5-4.5A2 2 0 018.4 7h7.2a2 2 0 011.9 1.5L19 13M5 13h14M5 13v4m14-4v4M7 17h2m6 0h2" stroke="#cf3d33" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    warn:'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" fill="none" stroke="#c7841b" stroke-width="1.8" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="14" stroke="#c7841b" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1" fill="#c7841b"/></svg>',
+    ok:'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
+  let badN=0,warnN=0;
+  const lamps=(r.flags||[]).map((f,i)=>{
+    let code;
+    if(f.level==='ok'){code='OK';}
+    else if(f.level==='bad'){badN++;code='F-'+String(badN).padStart(2,'0');}
+    else{warnN++;code='V-'+String(warnN).padStart(2,'0');}
+    return '<div class="dlamp '+f.level+'" style="animation-delay:'+(0.15+i*0.09)+'s"><span class="di">'+(lampIcons[f.level]||lampIcons.warn)+'</span><div class="db"><b>'+esc(f.title)+'</b><span>'+esc(f.detail)+'</span></div><span class="dcode">'+code+'</span></div>';
+  }).join('');
+
+  steps.push({label:'Diagnose',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">📊</span>Kvittn diagnose</div>'+
+    '<div class="dashboard">'+
+      '<div class="dash-top"><span class="dt">Trygghetsdiagnose</span><span class="dbadge">ANNONSE-SCAN · OK</span></div>'+
+      '<div class="dash-readout">'+
+        '<div class="dash-num" id="scoreNum" style="color:'+col+';text-shadow:0 0 18px '+col+'55">0</div>'+
+        '<div class="dash-rmeta">'+
+          '<div class="dlab">Trygghet / 100</div>'+
+          '<div class="dstatus">'+esc(r.label)+'</div>'+
+          '<div class="dash-bars" id="dashBars"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="dash-blurb">'+esc(r.blurb)+'</div>'+
+      '<div class="dash-lamps-t">Varsellamper · funn i annonsen</div>'+
+      lamps+
+    '</div>'});
+  // Reklamasjonssimulator: gjør risikoen til et konkret tall
+  if(r.reklamasjon){
+    const rk=r.reklamasjon;
+    const utf=rk.utfall||'Ukjent';
+    const utfCol=/heving/i.test(utf)?RED:/prisavslag/i.test(utf)?AMBER:GREEN;
+    const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('no-NO')+' kr':'Ingen vesentlig eksponering';
+    steps.push({label:'Risiko i kroner',html:
+      '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">⚖️</span>Hva et krav kan koste</div>'+
+      '<h3>Reklamasjonsrisiko i kroner</h3><p class="lead">Hvis kjøper reklamerer med denne annonsen – slik kan det slå ut.</p>'+
+      '<div class="simcard">'+
+        '<div class="simrow"><span class="simlab">Sannsynlig utfall</span><span class="simval" style="color:'+utfCol+'">'+esc(utf)+'</span></div>'+
+        '<div class="simrow"><span class="simlab">Estimert eksponering</span><span class="simbig" style="color:'+utfCol+'">'+esc(kr)+'</span></div>'+
+        '<p class="simwhy">'+esc(rk.begrunnelse||'')+'</p>'+
+      '</div>'+
+      '<p class="simnote">Veiledende anslag, ikke juridisk rådgivning. Reelt utfall avhenger av dokumentasjon og forhandling.</p>'});
+  }
+  steps.push({label:'Forbehold',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
+    '<h3>Forbehold du bør ha med</h3><p class="lead">Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p>'+
+    docBox('legalText','Forbeholdstekst',r.legal)+'<button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button>'});
+  steps.push({label:'Bedre annonse',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">✨</span>Bedre annonse</div>'+
+    '<h3>Forbedret annonsetekst</h3><p class="lead">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til FINN.</p>'+
+    docBox('improvedText','Klar for FINN',r.improved)+'<button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'+
+    '<div class="mailwrap">'+
+      '<button type="button" class="mailtoggle" id="mailToggle" onclick="toggleMail()">✉️ Få hele analysen på e-post</button>'+
+      '<div class="mailbox" id="mailBox">'+
+        '<p class="maillead">Vi sender annonsetekst, forbehold og risikovurdering til deg.</p>'+
+        '<div class="mailrow"><input type="email" id="epost" placeholder="din@epost.no" autocomplete="email"><button type="button" class="btn mailsend" id="mailSend" onclick="sendMail()">Send</button></div>'+
+        '<p class="mailstatus" id="mailStatus"></p>'+
+      '</div>'+
+    '</div>'});
+  if(qs)steps.push({label:'Spørsmål',html:
+    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
+    '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs});
+
+  WIZ.steps=steps;
+
+  const box=document.getElementById('results');
+  box.innerHTML=
+    '<div class="res-shell">'+
+      '<div class="res-top"><span class="res-kicker lbl">Din analyse</span><button class="restart" style="margin:0;padding:9px 16px" onclick="resetTool()">← Ny sjekk</button></div>'+
+      '<div class="wizard-card"><div class="body" id="wizBody"></div>'+
+        '<div class="wizard-dots" id="wizDots"></div>'+
+        '<div class="wizard-nav" id="wizNav"></div>'+
+      '</div>'+
+    '</div>';
+  box.classList.add('on');
+  drawStep();
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function extractFromFinn(html) {
-  let parts = [];
-
-  // 1) BEST: __NEXT_DATA__ – moderne FINN legger all data her
-  const nextMatch = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
-  if (nextMatch) {
-    try {
-      const data = JSON.parse(nextMatch[1].trim());
-      const found = deepFindAd(data);
-      if (found.title) parts.push(found.title);
-      if (found.description) parts.push(found.description);
-    } catch (_) { /* ignorer */ }
-  }
-
-  // 2) JSON-LD strukturert data
-  if (parts.length === 0) {
-    const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
-    for (const m of ldMatches) {
-      try {
-        const data = JSON.parse(m[1].trim());
-        const arr = Array.isArray(data) ? data : [data];
-        for (const obj of arr) {
-          if (obj && (obj.name || obj.description)) {
-            if (obj.name) parts.push(decode(String(obj.name)));
-            if (obj.description) parts.push(decode(String(obj.description)));
-          }
-        }
-      } catch (_) {}
-    }
-  }
-
-  // 3) og:title + og:description
-  if (parts.length === 0) {
-    const t = meta(html, "og:title"); if (t) parts.push(t);
-    const d = meta(html, "og:description"); if (d) parts.push(d);
-  }
-
-  // 4) <title>
-  if (parts.length === 0) {
-    const t = html.match(/<title>([\s\S]*?)<\/title>/i);
-    if (t) parts.push(decode(t[1]));
-  }
-
-  const seen = new Set();
-  const clean = parts
-    .map((p) => String(p).replace(/\s+/g, " ").trim())
-    .filter((p) => p && !seen.has(p) && seen.add(p));
-  return clean.join("\n\n").slice(0, 6000);
+function docBox(id,kicker,txt){
+  const t=esc(txt||'');
+  const long=(txt||'').length>240;
+  return '<div class="docbox"><div class="doc-head"><span class="doc-dot"></span><span class="lbl">'+esc(kicker)+'</span></div>'+
+    '<div class="clip'+(long?'':' open')+'" id="'+id+'clip"><div class="doc-text" id="'+id+'">'+t+'</div></div>'+
+    (long?'<button class="lesmer" id="'+id+'btn" onclick="toggleMer(\''+id+'\')">Les mer <span class="arr">▾</span></button>':'')+
+    '</div>';
+}
+function toggleMer(id){
+  const c=document.getElementById(id+'clip'),b=document.getElementById(id+'btn');
+  const open=c.classList.toggle('open');b.classList.toggle('open',open);
+  b.firstChild.textContent=open?'Vis mindre ':'Les mer ';
 }
 
-// Søk rekursivt i __NEXT_DATA__ etter annonsetittel + beskrivelse
-function deepFindAd(obj, depth = 0) {
-  const out = { title: "", description: "" };
-  if (!obj || depth > 8 || typeof obj !== "object") return out;
-
-  // Vanlige FINN-felt
-  const titleKeys = ["title", "heading", "subject"];
-  const descKeys = ["description", "bodyHtml", "body", "generalText", "adText"];
-
-  for (const k of Object.keys(obj)) {
-    const v = obj[k];
-    if (typeof v === "string" && v.length > 0) {
-      if (!out.title && titleKeys.includes(k) && v.length < 200) out.title = decode(stripTags(v));
-      if (!out.description && descKeys.includes(k) && v.length > 40) out.description = decode(stripTags(v));
-    } else if (v && typeof v === "object") {
-      const sub = deepFindAd(v, depth + 1);
-      if (!out.title && sub.title) out.title = sub.title;
-      if (!out.description && sub.description) out.description = sub.description;
-    }
-    if (out.title && out.description) break;
+function drawStep(dir){
+  const s=WIZ.steps[WIZ.i];
+  const cls=dir===1?'wstep in-right':dir===-1?'wstep in-left':'wstep';
+  document.getElementById('wizBody').innerHTML='<div class="'+cls+'">'+s.html+'</div>';
+  document.getElementById('wizDots').innerHTML=WIZ.steps.map((x,i)=>'<span class="wizard-dot '+(i===WIZ.i?'on':(i<WIZ.i?'done':''))+'"></span>').join('');
+  const last=WIZ.i===WIZ.steps.length-1;
+  let nav='';
+  if(WIZ.i>0)nav+='<button class="back" onclick="wizGo(-1)">Tilbake</button>';
+  nav+='<button class="fwd" onclick="'+(last?'resetTool()':'wizGo(1)')+'">'+(last?'Ferdig – sjekk en ny ✓':'Videre →')+'</button>';
+  document.getElementById('wizNav').innerHTML=nav;
+  if(WIZ.i===0){
+    const score=WIZ.score, col=WIZ.col;
+    // build 20 bars
+    const bw=document.getElementById('dashBars');
+    if(bw){bw.innerHTML='';for(let i=0;i<20;i++)bw.appendChild(document.createElement('i'));}
+    setTimeout(()=>{
+      let cur=0;const t=setInterval(()=>{
+        cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}
+        const sn=document.getElementById('scoreNum');if(sn)sn.textContent=cur;
+        if(bw){const lit=Math.round(20*cur/100);[...bw.children].forEach((b,i)=>{b.style.background=i<lit?col:'rgba(255,255,255,.08)';b.style.boxShadow=i<lit?('0 0 5px '+col+'99'):'none';});}
+      },26);
+      if(score>80)setTimeout(confetti,500);
+    },300);
   }
-  return out;
 }
-
-function stripTags(s) { return String(s).replace(/<[^>]+>/g, " "); }
-
-function meta(html, prop) {
-  const re = new RegExp('<meta[^>]+(?:property|name)=["\']' + prop + '["\'][^>]+content=["\']([^"\']+)["\']', "i");
-  const m = html.match(re);
-  return m ? decode(m[1]) : "";
+function wizGo(d){const prev=WIZ.i;WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));if(WIZ.i===prev)return;drawStep(d);}
+function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
+function toggleMail(){
+  const box=document.getElementById('mailBox');
+  const btn=document.getElementById('mailToggle');
+  if(!box)return;
+  const open=box.classList.toggle('open');
+  btn.classList.toggle('open',open);
+  if(open)setTimeout(()=>{const e=document.getElementById('epost');if(e)e.focus();},120);
 }
-
-function decode(s) {
-  return String(s)
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'")
-    .replace(/&aelig;/gi, "æ").replace(/&oslash;/gi, "ø").replace(/&aring;/gi, "å")
-    .replace(/&nbsp;/g, " ").replace(/\\u00e6/g, "æ").replace(/\\u00f8/g, "ø").replace(/\\u00e5/g, "å");
+function sendMail(){
+  const inp=document.getElementById('epost');
+  const status=document.getElementById('mailStatus');
+  const btn=document.getElementById('mailSend');
+  const epost=(inp?.value||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(epost)){status.textContent='Skriv inn en gyldig e-postadresse.';status.className='mailstatus err';return;}
+  btn.disabled=true;btn.textContent='Sender...';status.textContent='';status.className='mailstatus';
+  fetch('/api/send-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({epost,analyse:window.__analyse})})
+    .then(async(r)=>{const d=await r.json().catch(()=>({}));
+      if(r.ok&&d.ok){status.textContent='Sendt! Sjekk innboksen din.';status.className='mailstatus ok';btn.textContent='Sendt ✓';}
+      else{status.textContent=d.grunn==='Mail ikke konfigurert'?'E-post er ikke aktivert ennå.':'Kunne ikke sende akkurat nå.';status.className='mailstatus err';btn.disabled=false;btn.textContent='Send';}
+    })
+    .catch(()=>{status.textContent='Kunne ikke sende akkurat nå.';status.className='mailstatus err';btn.disabled=false;btn.textContent='Send';});
 }
+function copyText(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{const o=btn.textContent;btn.textContent="Kopiert ✓";btn.classList.add('done');setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);});}
+function resetTool(){
+  document.body.classList.remove('result-mode');
+  setLoading(false);
+  var L=document.getElementById('loading');if(L)L.classList.remove('on');
+  document.getElementById('results').classList.remove('on');
+  document.getElementById('results').innerHTML='';
+  var ip=document.getElementById('inputPanel');
+  ip.style.display='';
+  document.getElementById('annonseTekst').value='';
+  var u=document.getElementById('finnUrl');if(u)u.value='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goHome(e){if(e)e.preventDefault();goPage('home');resetTool();}
+
+/* ===== SIDE-ROUTER (egne "sider" i samme fil) ===== */
+function goPage(page,e){
+  if(e)e.preventDefault();
+  document.body.classList.remove('sub-sjekker','sub-reklamasjon');
+  if(page==='sjekker'){document.body.classList.add('sub-sjekker');if(location.hash!=='#/sjekker')history.pushState(null,'','#/sjekker');}
+  else if(page==='reklamasjon'){document.body.classList.add('sub-reklamasjon');if(location.hash!=='#/reklamasjon')history.pushState(null,'','#/reklamasjon');}
+  else{if(location.hash)history.pushState(null,'',location.pathname+location.search);}
+  window.scrollTo({top:0,behavior:'auto'});
+}
+function syncPageFromHash(){
+  var h=location.hash;
+  if(h==='#/sjekker')goPageState('sjekker');
+  else if(h==='#/reklamasjon')goPageState('reklamasjon');
+  else goPageState('home');
+}
+function goPageState(page){
+  document.body.classList.remove('sub-sjekker','sub-reklamasjon');
+  if(page==='sjekker')document.body.classList.add('sub-sjekker');
+  else if(page==='reklamasjon')document.body.classList.add('sub-reklamasjon');
+  window.scrollTo({top:0,behavior:'auto'});
+}
+window.addEventListener('popstate',syncPageFromHash);
+window.addEventListener('DOMContentLoaded',function(){if(location.hash==='#/sjekker'||location.hash==='#/reklamasjon')syncPageFromHash();});
+
+(function(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;function init(){var t=document.querySelectorAll('#howSec .step, .band, .partner, .faq details, .section .head, .scheck, .rek-card');t.forEach(function(el){if(!el.classList.contains('sr'))el.classList.add('sr');});var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});t.forEach(function(el){io.observe(el);});
+}if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);})();
+</script>
+</body>
+</html>
