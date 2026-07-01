@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     if (!text || text.length < 40) {
       return res.status(422).json({ error: "Fant ikke annonseteksten." });
     }
-    const bilder = finnBilder(html);
+    const bilder = finnBilder(html, url);
     return res.status(200).json({ text, bilder });
   } catch (e) {
     console.error("FINN-henting feilet:", e);
@@ -151,30 +151,51 @@ function finnFullBeskrivelse(html) {
 }
 
 // Henter bilde-URLer fra FINN JSON-LD (contentUrl) + og:image som fallback.
-function finnBilder(html) {
+function finnBilder(html, annonseUrl) {
   const urls = [];
+  // Trekk ut annonse-ID fra URL for å filtrere bort fremmede bilder (logoer, placeholder osv.)
+  const idMatch = (annonseUrl || "").match(/(\d{6,})/);
+  const annonseId = idMatch ? idMatch[1] : null;
+
   const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   for (const m of ldMatches) {
     try {
       const data = JSON.parse(m[1].trim());
       const arr = Array.isArray(data) ? data : [data];
       for (const obj of arr) {
-        if (obj && obj.image) {
+        // Kun bilder fra Product/Car/Vehicle – ikke Organization (FINN-logo) e.l.
+        if (obj && obj.image && /Product|Car|Vehicle/i.test(obj["@type"] || "")) {
           const imgs = Array.isArray(obj.image) ? obj.image : [obj.image];
           for (const img of imgs) {
             const url = typeof img === "string" ? img : (img && img.contentUrl);
-            if (url && /finncdn\.no/i.test(url)) urls.push(url);
+            if (!url || !/finncdn\.no/i.test(url)) continue;
+            // Behold kun bilder som hører til denne annonsen (matcher annonse-ID)
+            if (annonseId && url.includes(annonseId)) urls.push(url);
+            else if (!annonseId) urls.push(url);
           }
         }
       }
     } catch (_) {}
   }
+  // Ingen treff via ID-filter? Fall tilbake til alle finncdn-bilder fra Product
   if (!urls.length) {
-    const og = meta(html, "og:image");
-    if (og) urls.push(og);
+    for (const m of ldMatches) {
+      try {
+        const data = JSON.parse(m[1].trim());
+        const arr = Array.isArray(data) ? data : [data];
+        for (const obj of arr) {
+          if (obj && obj.image && /Product|Car|Vehicle/i.test(obj["@type"] || "")) {
+            const imgs = Array.isArray(obj.image) ? obj.image : [obj.image];
+            for (const img of imgs) {
+              const url = typeof img === "string" ? img : (img && img.contentUrl);
+              if (url && /finncdn\.no\/dynamic/i.test(url)) urls.push(url);
+            }
+          }
+        }
+      } catch (_) {}
+    }
   }
-  // Dedupliser, maks 6
-  return [...new Set(urls)].slice(0, 6);
+  return [...new Set(urls)].slice(0, 8);
 }
 
 function stripTags(s) { return String(s).replace(/<[^>]+>/g, " "); }
