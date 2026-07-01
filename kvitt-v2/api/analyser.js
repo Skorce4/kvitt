@@ -83,6 +83,12 @@ Lag 4-6 flags og 4-5 questions. Annonse:
       r.legal = rensForbudte(r.legal, r.banned);
     }
 
+    // Legg til en diskré signatur nederst i annonseteksten. Følger med når
+    // selger kopierer teksten til FINN – gratis distribusjon for Kvittn.
+    if (r.improved && !/kvittn\.no/i.test(r.improved)) {
+      r.improved = r.improved.replace(/\s*$/, "") + "\n\n— Annonsen er kvalitetssjekket med kvittn.no";
+    }
+
     return res.status(200).json({
       score: r.score,
       label: r.label,
