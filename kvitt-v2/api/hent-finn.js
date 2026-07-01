@@ -88,9 +88,12 @@ let SISTE_ZYTE = { status: null, feil: null };
 // browser=true gir browserHtml (JS-rendret, dyrere, kommer forbi mer).
 // Begge kjører med residential IP + norsk geolokasjon for å unngå Cloudflare-ban.
 async function hentViaZyte(url, zyteKey, browser) {
+  // Merk: ipType "residential" krever KYC-godkjent Zyte-konto. Vi dropper det
+  // og lar Zyte bruke standard datacenter-IP + sin egen anti-ban/Cloudflare-
+  // håndtering, som ofte er nok for FINN. browserHtml gir i tillegg JS-rendering.
   const body = browser
-    ? { url, browserHtml: true, ipType: "residential", geolocation: "NO" }
-    : { url, httpResponseBody: true, ipType: "residential", geolocation: "NO" };
+    ? { url, browserHtml: true, geolocation: "NO" }
+    : { url, httpResponseBody: true, geolocation: "NO" };
 
   try {
     const r = await fetch("https://api.zyte.com/v1/extract", {
