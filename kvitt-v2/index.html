@@ -379,6 +379,20 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .simbig{font-family:'Space Grotesk';font-weight:700;font-size:30px;line-height:1;text-shadow:0 0 16px currentColor}
 .simwhy{margin:12px 0 0;font-size:14px;color:var(--ink2);line-height:1.55}
 .simnote{margin-top:12px;font-size:12px;color:var(--ink3);line-height:1.5}
+.mailwrap{margin-top:14px}
+.mailtoggle{width:100%;background:transparent;border:1.5px dashed var(--line2);color:var(--ink2);font-family:'Inter';font-weight:600;font-size:14px;padding:12px;border-radius:var(--r);cursor:pointer;transition:.15s}
+.mailtoggle:hover{background:var(--paper);color:var(--ink)}
+.mailtoggle.open{border-style:solid;border-color:var(--green);color:var(--green)}
+.mailbox{max-height:0;overflow:hidden;transition:max-height .28s ease;margin-top:0}
+.mailbox.open{max-height:220px;margin-top:12px}
+.maillead{font-size:13px;color:var(--ink2);margin:0 0 10px}
+.mailrow{display:flex;gap:8px}
+.mailrow input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);font-family:'Inter';font-size:15px}
+.mailrow input:focus{outline:none;border-color:var(--green)}
+.mailsend{flex:0 0 auto;padding:12px 20px}
+.mailstatus{font-size:13px;margin:10px 0 0;min-height:18px}
+.mailstatus.ok{color:var(--green)}
+.mailstatus.err{color:#cf3d33}
 .docbox{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:10px;padding:18px 18px 16px;overflow:hidden}
 .docbox::after{content:'KVITTN';position:absolute;right:-6px;bottom:-10px;font-family:'Space Grotesk';font-weight:700;font-size:46px;letter-spacing:.06em;color:var(--ink);opacity:.035;pointer-events:none}
 .docbox .doc-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:11px;border-bottom:1px dashed var(--line2)}
@@ -440,8 +454,6 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
     <div class="or lbl"><span>eller lim inn teksten selv</span></div>
     <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
     <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
-    <label class="flabel lbl" style="margin-top:14px">Få analysen på e-post <span class="soon" style="background:#eef3ee;color:#2f9e5f">Valgfritt</span></label>
-    <input type="email" id="epost" placeholder="din@epost.no" autocomplete="email">
     <button class="btn go" id="goBtn" onclick="analyze()">
       <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Sjekk annonsen min
@@ -669,11 +681,6 @@ async function analyze(){
   try{const res=await fetch('/api/analyser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
     if(!res.ok){const e=await res.json().catch(()=>({}));const msg=e.error||('Serverfeil '+res.status);const err=new Error(msg);err.userMsg=(res.status===429);throw err;}
     const r=await res.json();render(r);bumpCounter();loadCounter();
-    // Valgfri e-post: send analysen hvis bruker fylte inn adresse
-    const epost=(document.getElementById('epost')?.value||"").trim();
-    if(epost&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(epost)){
-      fetch('/api/send-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({epost,analyse:r})}).catch(()=>{});
-    }
   }catch(e){showInput();console.error(e);alert(e.userMsg?e.message:"Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
 }
 
@@ -682,6 +689,7 @@ function colorFor(s){return s>=70?GREEN:s>=45?AMBER:RED}
 
 let WIZ={steps:[],i:0,score:0,col:GREEN};
 function render(r){
+  window.__analyse=r;
   setLoading(false);
   document.body.classList.add('result-mode');
   const score=Math.max(0,Math.min(100,r.score)),col=colorFor(score);
@@ -730,7 +738,7 @@ function render(r){
     const utfCol=/heving/i.test(utf)?RED:/prisavslag/i.test(utf)?AMBER:GREEN;
     const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('no-NO')+' kr':'Ingen vesentlig eksponering';
     steps.push({label:'Risiko i kroner',html:
-      '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">⚖️</span>Hva kan et krav koste deg</div>'+
+      '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">⚖️</span>Hva et krav kan koste</div>'+
       '<h3>Reklamasjonsrisiko i kroner</h3><p class="lead">Hvis kjøper reklamerer med denne annonsen – slik kan det slå ut.</p>'+
       '<div class="simcard">'+
         '<div class="simrow"><span class="simlab">Sannsynlig utfall</span><span class="simval" style="color:'+utfCol+'">'+esc(utf)+'</span></div>'+
@@ -746,7 +754,15 @@ function render(r){
   steps.push({label:'Bedre annonse',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">✨</span>Bedre annonse</div>'+
     '<h3>Forbedret annonsetekst</h3><p class="lead">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til FINN.</p>'+
-    docBox('improvedText','Klar for FINN',r.improved)+'<button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'});
+    docBox('improvedText','Klar for FINN',r.improved)+'<button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'+
+    '<div class="mailwrap">'+
+      '<button type="button" class="mailtoggle" id="mailToggle" onclick="toggleMail()">✉️ Få hele analysen på e-post</button>'+
+      '<div class="mailbox" id="mailBox">'+
+        '<p class="maillead">Vi sender annonsetekst, forbehold og risikovurdering til deg.</p>'+
+        '<div class="mailrow"><input type="email" id="epost" placeholder="din@epost.no" autocomplete="email"><button type="button" class="btn mailsend" id="mailSend" onclick="sendMail()">Send</button></div>'+
+        '<p class="mailstatus" id="mailStatus"></p>'+
+      '</div>'+
+    '</div>'});
   if(qs)steps.push({label:'Spørsmål',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
     '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs});
@@ -808,6 +824,28 @@ function drawStep(dir){
 }
 function wizGo(d){const prev=WIZ.i;WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));if(WIZ.i===prev)return;drawStep(d);}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
+function toggleMail(){
+  const box=document.getElementById('mailBox');
+  const btn=document.getElementById('mailToggle');
+  if(!box)return;
+  const open=box.classList.toggle('open');
+  btn.classList.toggle('open',open);
+  if(open)setTimeout(()=>{const e=document.getElementById('epost');if(e)e.focus();},120);
+}
+function sendMail(){
+  const inp=document.getElementById('epost');
+  const status=document.getElementById('mailStatus');
+  const btn=document.getElementById('mailSend');
+  const epost=(inp?.value||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(epost)){status.textContent='Skriv inn en gyldig e-postadresse.';status.className='mailstatus err';return;}
+  btn.disabled=true;btn.textContent='Sender...';status.textContent='';status.className='mailstatus';
+  fetch('/api/send-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({epost,analyse:window.__analyse})})
+    .then(async(r)=>{const d=await r.json().catch(()=>({}));
+      if(r.ok&&d.ok){status.textContent='Sendt! Sjekk innboksen din.';status.className='mailstatus ok';btn.textContent='Sendt ✓';}
+      else{status.textContent=d.grunn==='Mail ikke konfigurert'?'E-post er ikke aktivert ennå.':'Kunne ikke sende akkurat nå.';status.className='mailstatus err';btn.disabled=false;btn.textContent='Send';}
+    })
+    .catch(()=>{status.textContent='Kunne ikke sende akkurat nå.';status.className='mailstatus err';btn.disabled=false;btn.textContent='Send';});
+}
 function copyText(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{const o=btn.textContent;btn.textContent="Kopiert ✓";btn.classList.add('done');setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);});}
 function resetTool(){
   document.body.classList.remove('result-mode');
