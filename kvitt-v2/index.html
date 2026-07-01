@@ -52,6 +52,11 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:rgba(15,29,51,.92);
 nav .row{max-width:1120px;margin:0 auto;padding:0 24px;height:100%;display:flex;align-items:center;justify-content:space-between}
 nav a.home{text-decoration:none;display:inline-flex}
 .nav-tag{color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.16);border-radius:6px;padding:5px 11px}
+.nav-right{display:flex;align-items:center;gap:8px}
+.nav-link{color:rgba(255,255,255,.6);text-decoration:none;padding:7px 12px;border-radius:6px;transition:.15s;white-space:nowrap}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,.07)}
+body.result-mode .nav-link{display:none}
+@media(max-width:780px){.nav-link{display:none}.nav-tag{display:none}}
 
 /* HERO (dark) */
 .hero{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:72px 0 96px}
@@ -277,6 +282,71 @@ footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-
 
 @media(max-width:720px){.steps{grid-template-columns:1fr}}
 
+/* ===== HVA KVITTN SJEKKER ===== */
+.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+@media(max-width:720px){.scan-grid{grid-template-columns:1fr}}
+.scheck{display:flex;gap:14px;padding:22px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh);transition:transform .2s,box-shadow .2s}
+.scheck:hover{transform:translateY(-3px);box-shadow:var(--sh-md)}
+.scheck .si{width:46px;height:46px;border-radius:12px;flex:none;display:grid;place-items:center;background:var(--green-light)}
+.scheck .si svg{width:23px;height:23px}
+.scheck h4{font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:5px;letter-spacing:-.2px}
+.scheck p{font-size:13.5px;color:var(--ink2);line-height:1.55}
+.scheck .ex{display:inline-block;margin-top:9px;font-family:'Space Grotesk';font-size:11px;font-weight:600;letter-spacing:.04em;padding:3px 9px;border-radius:6px;background:var(--paper2);color:var(--ink2)}
+.scheck .ex.bad{background:var(--red-light);color:var(--red)}
+
+/* ===== OM REKLAMASJONSRISIKO ===== */
+.rek-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-md)}
+.rek-tl{display:grid;grid-template-columns:repeat(3,1fr)}
+@media(max-width:760px){.rek-tl{grid-template-columns:1fr}}
+.rek-step{padding:28px 24px;border-right:1px solid var(--line);position:relative}
+.rek-step:last-child{border-right:none}
+@media(max-width:760px){.rek-step{border-right:none;border-bottom:1px solid var(--line)}.rek-step:last-child{border-bottom:none}}
+.rek-step .rk-num{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk';font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:14px}
+.rek-step .rk-num b{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;background:var(--paper);border:1.5px solid var(--line2);color:var(--ink);font-size:12px}
+.rek-step.danger .rk-num b{border-color:rgba(207,61,51,.5);color:var(--red);background:var(--red-light)}
+.rek-step.safe .rk-num b{border-color:rgba(47,158,95,.5);color:var(--green);background:var(--green-light)}
+.rek-step h4{font-family:'Space Grotesk';font-size:18px;font-weight:600;letter-spacing:-.3px;margin-bottom:8px}
+.rek-step p{font-size:13.5px;color:var(--ink2);line-height:1.55}
+.rek-step .rk-law{margin-top:13px;padding-top:11px;border-top:1px dashed var(--line2);font-family:'Space Grotesk';font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.rek-foot{display:flex;align-items:center;gap:16px;padding:22px 26px;background:var(--paper2);border-top:1px solid var(--line);flex-wrap:wrap}
+.rek-foot .rk-shield{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--green-light)}
+.rek-foot .rk-shield svg{width:23px;height:23px}
+.rek-foot p{font-size:14px;color:var(--ink2);flex:1;min-width:240px}
+.rek-foot p b{color:var(--ink)}
+.rek-cta{text-align:center;margin-top:32px}
+.rek-cta a{display:inline-flex;align-items:center;gap:9px;background:var(--green);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 28px;border-radius:var(--r);box-shadow:0 2px 12px rgba(47,158,95,.34);transition:.18s}
+.rek-cta a:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 8px 22px rgba(47,158,95,.42)}
+
+/* ===== SUBPAGES (egne "sider" i samme fil) ===== */
+.learn-links{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+@media(max-width:680px){.learn-links{grid-template-columns:1fr}}
+.learn-link{display:flex;align-items:center;gap:15px;padding:18px 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);text-decoration:none;transition:transform .18s,box-shadow .18s,border-color .18s;cursor:pointer}
+.learn-link:hover{transform:translateY(-2px);box-shadow:var(--sh-md);border-color:var(--green-mid)}
+.learn-link .ll-ic{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--green-light)}
+.learn-link .ll-ic svg{width:21px;height:21px}
+.learn-link .ll-txt{flex:1;min-width:0}
+.learn-link .ll-txt b{display:block;font-family:'Space Grotesk';font-size:15px;font-weight:600;color:var(--ink);letter-spacing:-.2px}
+.learn-link .ll-txt span{font-size:13px;color:var(--ink2)}
+.learn-link .ll-arr{width:20px;height:20px;flex:none;transition:transform .18s}
+.learn-link:hover .ll-arr{transform:translateX(3px)}
+.subpage{display:none}
+body.sub-sjekker .home-only,body.sub-reklamasjon .home-only{display:none!important}
+body.sub-sjekker #page-sjekker{display:block}
+body.sub-reklamasjon #page-reklamasjon{display:block}
+.subpage-hero{background:var(--navy);color:#fff;padding:30px 0 40px;position:relative;overflow:hidden}
+.subpage-hero .wrap{position:relative;z-index:2}
+.backlink{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;transition:.15s;cursor:pointer;margin-bottom:24px}
+.backlink:hover{background:rgba(255,255,255,.14);transform:translateX(-2px)}
+.backlink svg{width:15px;height:15px}
+.subpage-hero .sp-eyebrow{color:var(--green-bright);margin-bottom:14px;display:inline-flex;align-items:center;gap:9px}
+.subpage-hero .sp-eyebrow::before{content:'';width:24px;height:1px;background:rgba(55,196,111,.5)}
+.subpage-hero h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(28px,5vw,44px);line-height:1.08;letter-spacing:-1px;margin-bottom:14px;max-width:680px}
+.subpage-hero .sp-sub{font-size:17px;color:rgba(255,255,255,.72);max-width:560px;line-height:1.6}
+.subpage-body{padding:48px 0 20px}
+.subpage-cta{text-align:center;padding:10px 0 60px}
+.subpage-cta a{display:inline-flex;align-items:center;gap:9px;background:var(--green);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 28px;border-radius:var(--r);box-shadow:0 2px 12px rgba(47,158,95,.34);transition:.18s;cursor:pointer}
+.subpage-cta a:hover{background:var(--green-bright);transform:translateY(-2px);box-shadow:0 8px 22px rgba(47,158,95,.42)}
+
 /* RESULT MODE — skjuler landingssiden, fokusert visning */
 body.result-mode .landing{display:none!important}
 body.result-mode #inputPanel{display:none!important}
@@ -301,6 +371,14 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 @keyframes slideInR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
 @keyframes slideInL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
 /* premium tekstboks: dokument med Kvittn-skilt-vannmerke + venstre fargekant */
+.simcard{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-radius:12px;padding:20px 20px 16px;margin-top:4px}
+.simrow{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:10px 0;border-bottom:1px dashed var(--line2)}
+.simrow:last-of-type{border-bottom:none}
+.simlab{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.simval{font-family:'Space Grotesk';font-weight:700;font-size:18px}
+.simbig{font-family:'Space Grotesk';font-weight:700;font-size:30px;line-height:1;text-shadow:0 0 16px currentColor}
+.simwhy{margin:12px 0 0;font-size:14px;color:var(--ink2);line-height:1.55}
+.simnote{margin-top:12px;font-size:12px;color:var(--ink3);line-height:1.5}
 .docbox{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:10px;padding:18px 18px 16px;overflow:hidden}
 .docbox::after{content:'KVITTN';position:absolute;right:-6px;bottom:-10px;font-family:'Space Grotesk';font-weight:700;font-size:46px;letter-spacing:.06em;color:var(--ink);opacity:.035;pointer-events:none}
 .docbox .doc-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:11px;border-bottom:1px dashed var(--line2)}
@@ -335,11 +413,15 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 
 <nav><div class="row">
   <a href="#top" class="home" id="navLogo" onclick="goHome(event)"></a>
-  <span class="nav-tag lbl">Gratis verktøy</span>
+  <div class="nav-right">
+    <a href="#/sjekker" class="nav-link lbl" onclick="goPage('sjekker',event)">Hva Kvittn sjekker</a>
+    <a href="#/reklamasjon" class="nav-link lbl" onclick="goPage('reklamasjon',event)">Om reklamasjonsrisiko</a>
+    <span class="nav-tag lbl">Gratis verktøy</span>
+  </div>
 </div></nav>
 
 <a id="top"></a>
-<header class="hero landing">
+<header class="hero landing home-only">
   <canvas id="heroCv"></canvas>
   <div class="hero-wave"><svg viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 60 L0 30 Q 300 0 600 28 T 1200 26 L1200 60 Z" fill="#F6F4EF"/></svg></div>
   <div class="wrap">
@@ -349,7 +431,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   </div>
 </header>
 
-<div class="checker-wrap">
+<div class="checker-wrap home-only">
   <div class="checker" id="inputPanel">
     <div class="top"><b>Sjekk annonsen din</b><span class="lbl">Ingen innlogging</span></div>
     <label class="flabel lbl">Lim inn FINN-lenke <span class="soon">Kommer snart</span></label>
@@ -358,6 +440,8 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
     <div class="or lbl"><span>eller lim inn teksten selv</span></div>
     <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
     <button type="button" class="ex-btn" onclick="fillExample()">Prøv med et eksempel ↓</button>
+    <label class="flabel lbl" style="margin-top:14px">Få analysen på e-post <span class="soon" style="background:#eef3ee;color:#2f9e5f">Valgfritt</span></label>
+    <input type="email" id="epost" placeholder="din@epost.no" autocomplete="email">
     <button class="btn go" id="goBtn" onclick="analyze()">
       <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Sjekk annonsen min
@@ -384,25 +468,37 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   </div>
 </div>
 
-<div class="wrap"><div class="results" id="results"></div></div>
+<div class="wrap home-only"><div class="results" id="results"></div></div>
 
-<section class="section landing" id="howSec"><div class="wrap">
+<section class="section landing home-only" id="howSec"><div class="wrap">
   <div class="head"><span class="sec-label lbl">Slik fungerer det</span><h2>Tre steg, ingen innlogging</h2></div>
   <div class="steps">
     <div class="step"><span class="num">01</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="11" y="9" width="26" height="32" rx="4" fill="#fff" stroke="#0f1d33" stroke-width="2.4"/><line x1="16" y1="18" x2="32" y2="18" stroke="#2f9e5f" stroke-width="2.2" stroke-linecap="round"/><line x1="16" y1="24" x2="32" y2="24" stroke="#c9d6e8" stroke-width="2.2" stroke-linecap="round"/><line x1="16" y1="30" x2="27" y2="30" stroke="#c9d6e8" stroke-width="2.2" stroke-linecap="round"/><path d="M24 2v9M24 11l-3.5-3.5M24 11l3.5-3.5" stroke="#2f9e5f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Lim inn annonsen</h3><p>Lenke fra FINN, eller bare kopier teksten.</p></div>
     <div class="step"><span class="num">02</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><path d="M8 30l2.5-7A4 4 0 0114 20.5h13A4 4 0 0131 23l2.5 7M8 30h26M8 30v5m26-5v5M12 35h3m16 0h3" stroke="#0f1d33" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33" cy="30" r="8.5" fill="#fff" stroke="#2f9e5f" stroke-width="2.4"/><line x1="39" y1="36" x2="44" y2="41" stroke="#2f9e5f" stroke-width="2.6" stroke-linecap="round"/><path d="M33 26.5v3M33 32.5v.5" stroke="#cf3d33" stroke-width="2.2" stroke-linecap="round"/></svg></div><h3>Vi finner hullene</h3><p>Sjekker forbehold og risiko — det du ikke ser selv.</p></div>
     <div class="step"><span class="num">03</span><div class="ib"><svg width="36" height="36" viewBox="0 0 48 48" fill="none"><path d="M24 6l13 5v9c0 8.5-5.5 14-13 17-7.5-3-13-8.5-13-17v-9l13-5z" fill="#fff" stroke="#0f1d33" stroke-width="2.4" stroke-linejoin="round"/><path d="M17 24l5 5 9-10" stroke="#2f9e5f" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Trygg å selge</h3><p>Få forbeholdstekst og bedre annonse, klar til publisering.</p></div>
   </div>
+  <div class="learn-links">
+    <a class="learn-link" href="#/sjekker" onclick="goPage('sjekker',event)">
+      <div class="ll-ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="ll-txt"><b>Hva Kvittn sjekker</b><span>De fire tingene analysen ser etter</span></div>
+      <svg class="ll-arr" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#46546b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a class="learn-link" href="#/reklamasjon" onclick="goPage('reklamasjon',event)">
+      <div class="ll-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/></svg></div>
+      <div class="ll-txt"><b>Om reklamasjonsrisiko</b><span>Hvorfor salget ikke er over når pengene er på konto</span></div>
+      <svg class="ll-arr" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#46546b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
 </div></section>
 
-<section class="section landing"><div class="wrap">
+<section class="section landing home-only"><div class="wrap">
   <div class="band">
     <div class="cell"><div class="big">2 år</div><div class="cap">har du reklamasjonsansvar etter et privatsalg</div></div>
     <div class="cell"><div class="big">1 av 3</div><div class="cap">privatannonser mangler et gyldig forbehold</div></div>
   </div>
 </div></section>
 
-<section class="section landing"><div class="wrap">
+<section class="section landing home-only"><div class="wrap">
   <div class="head"><span class="sec-label lbl">Spørsmål</span><h2>Ofte stilte spørsmål</h2></div>
   <div class="faq">
     <details><summary>Er Kvittn gratis?</summary><p>Ja. Lim inn annonsen din, så får du analysen. Ingen innlogging, ingenting å betale.</p></details>
@@ -412,6 +508,70 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   </div>
   <div class="disc">Kvittn gir generell informasjon, ikke juridisk rådgivning. Ved privatsalg gjelder kjøpsloven (ikke forbrukerkjøpsloven). Du har opplysningsplikt om kjente feil, og «solgt som den er» fritar deg ikke for ansvar hvis du har holdt tilbake informasjon. Ved tvil, kontakt en jurist.</div>
 </div></section>
+
+<!-- ===== UNDERSIDE: Hva Kvittn sjekker ===== -->
+<div class="subpage" id="page-sjekker">
+  <div class="subpage-hero">
+    <div class="wrap">
+      <span class="backlink" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tilbake</span>
+      <div class="sp-eyebrow lbl">Analysen</div>
+      <h1>Hva Kvittn faktisk ser etter</h1>
+      <p class="sp-sub">Kvittn leser annonsen som en kjøper med advokat ved siden av seg — og finner det du burde ha sagt før noen andre gjør det.</p>
+    </div>
+  </div>
+  <div class="subpage-body"><div class="wrap">
+    <div class="scan-grid">
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.1" fill="#2f9e5f"/></svg></div><div><h4>Risiko-formuleringer</h4><p>«Som ny», «feilfri» eller «alt fungerer» kan tolkes som garanti du gir kjøperen. Kvittn fanger dem og foreslår tryggere ordlyd som sier det samme uten å binde deg.</p><span class="ex bad">«som ny» → flagget</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h4>Manglende forbehold</h4><p>«Selges som den er» er ikke nok alene etter dagens regler. Kvittn skriver et forbehold som faktisk holder, tilpasset bilen og annonsen din.</p><span class="ex bad">mangler forbehold</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div><div><h4>Det du glemte å nevne</h4><p>Kjente feil du ikke har opplyst om er den vanligste grunnen til at kjøpere kommer tilbake. Kvittn spør om akkurat det kjøperen kommer til å spørre om.</p><span class="ex">opplysningsplikt</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/></svg></div><div><h4>Spørsmål kjøperen vil stille</h4><p>Du får en liste over det kjøpere typisk graver i — så du kan svare ærlig i annonsen og slippe diskusjonen på visning.</p><span class="ex">5 spørsmål</span></div></div>
+    </div>
+  </div></div>
+  <div class="subpage-cta"><a onclick="goPage('home');setTimeout(function(){document.getElementById('annonseTekst').focus();},400)">Sjekk min annonse gratis
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+</div>
+
+<!-- ===== UNDERSIDE: Om reklamasjonsrisiko ===== -->
+<div class="subpage" id="page-reklamasjon">
+  <div class="subpage-hero">
+    <div class="wrap">
+      <span class="backlink" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tilbake</span>
+      <div class="sp-eyebrow lbl">Hvorfor det gjelder deg</div>
+      <h1>Salget er ikke over når pengene er på konto</h1>
+      <p class="sp-sub">Selger du bil privat, kan kjøperen komme tilbake i opptil to år. Slik kan en helt vanlig handel bli et krav — og her er hvor Kvittn stopper det.</p>
+    </div>
+  </div>
+  <div class="subpage-body"><div class="wrap">
+    <div class="rek-card">
+      <div class="rek-tl">
+        <div class="rek-step">
+          <div class="rk-num"><b>1</b>Salget</div>
+          <h4>Du selger «som den er»</h4>
+          <p>Du tror det dekker deg. Men en bil kan fortsatt ha en «vesentlig mangel» i lovens forstand — selv med den setningen i annonsen.</p>
+          <div class="rk-law">Kjøpsloven · privatsalg</div>
+        </div>
+        <div class="rek-step danger">
+          <div class="rk-num"><b>2</b>Kravet</div>
+          <h4>Kjøper finner en feil</h4>
+          <p>Noe ryker etter en måned. Kjøper mener du burde sagt fra, eller at annonsen lovet for mye. Nå handler det om hva som faktisk stod skrevet.</p>
+          <div class="rk-law">Reklamasjon · inntil 2 år</div>
+        </div>
+        <div class="rek-step safe">
+          <div class="rk-num"><b>3</b>Beskyttelsen</div>
+          <h4>Kvittn ga deg dekning</h4>
+          <p>Med riktig forbehold og en ærlig, presis annonse står du støtt. Du opplyste, du tok forbehold — og det er dokumentert.</p>
+          <div class="rk-law">Forbehold · skriftlig</div>
+        </div>
+      </div>
+      <div class="rek-foot">
+        <div class="rk-shield"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <p><b>Kvittn er ikke en garanti — det er en brannmur.</b> Du kan ikke fjerne all risiko ved privatsalg, men du kan fjerne den unødvendige. Det er den Kvittn tar.</p>
+      </div>
+    </div>
+  </div></div>
+  <div class="subpage-cta"><a onclick="goPage('home');setTimeout(function(){document.getElementById('annonseTekst').focus();},400)">Sjekk min annonse gratis
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+</div>
 
 <footer class="landing"><div class="row">
   <svg height="34" viewBox="0 0 200 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="196" height="44" rx="10" fill="#101a2c"/><rect x="5" y="13" width="190" height="38" rx="7.5" fill="#fff"/><path d="M5 20.5C5 16.36 8.36 13 12.5 13H44V51H12.5C8.36 51 5 47.64 5 43.5V20.5Z" fill="#0a3aa0"/><g transform="translate(15.5 19)"><rect width="18" height="13" rx="1" fill="#ba0c2f"/><rect x="5" width="3.4" height="13" fill="#fff"/><rect y="5" width="18" height="3.4" fill="#fff"/><rect x="5.8" width="1.8" height="13" fill="#00205b"/><rect y="5.8" width="18" height="1.8" fill="#00205b"/></g><text x="24.5" y="46" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="9.5" fill="#fff">N</text><text x="120" y="39" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="22" letter-spacing="1.5" fill="#101a2c">KVITTN</text><circle cx="188" cy="14" r="10" fill="#37c46f" stroke="#0f1d33" stroke-width="2"/><path d="M183.5 14l3 3 6-6.4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -509,6 +669,11 @@ async function analyze(){
   try{const res=await fetch('/api/analyser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
     if(!res.ok){const e=await res.json().catch(()=>({}));const msg=e.error||('Serverfeil '+res.status);const err=new Error(msg);err.userMsg=(res.status===429);throw err;}
     const r=await res.json();render(r);bumpCounter();loadCounter();
+    // Valgfri e-post: send analysen hvis bruker fylte inn adresse
+    const epost=(document.getElementById('epost')?.value||"").trim();
+    if(epost&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(epost)){
+      fetch('/api/send-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({epost,analyse:r})}).catch(()=>{});
+    }
   }catch(e){showInput();console.error(e);alert(e.userMsg?e.message:"Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
 }
 
@@ -558,6 +723,22 @@ function render(r){
       '<div class="dash-lamps-t">Varsellamper · funn i annonsen</div>'+
       lamps+
     '</div>'});
+  // Reklamasjonssimulator: gjør risikoen til et konkret tall
+  if(r.reklamasjon){
+    const rk=r.reklamasjon;
+    const utf=rk.utfall||'Ukjent';
+    const utfCol=/heving/i.test(utf)?RED:/prisavslag/i.test(utf)?AMBER:GREEN;
+    const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('no-NO')+' kr':'Ingen vesentlig eksponering';
+    steps.push({label:'Risiko i kroner',html:
+      '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">⚖️</span>Hva kan et krav koste deg</div>'+
+      '<h3>Reklamasjonsrisiko i kroner</h3><p class="lead">Hvis kjøper reklamerer med denne annonsen – slik kan det slå ut.</p>'+
+      '<div class="simcard">'+
+        '<div class="simrow"><span class="simlab">Sannsynlig utfall</span><span class="simval" style="color:'+utfCol+'">'+esc(utf)+'</span></div>'+
+        '<div class="simrow"><span class="simlab">Estimert eksponering</span><span class="simbig" style="color:'+utfCol+'">'+esc(kr)+'</span></div>'+
+        '<p class="simwhy">'+esc(rk.begrunnelse||'')+'</p>'+
+      '</div>'+
+      '<p class="simnote">Veiledende anslag, ikke juridisk rådgivning. Reelt utfall avhenger av dokumentasjon og forhandling.</p>'});
+  }
   steps.push({label:'Forbehold',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
     '<h3>Forbehold du bør ha med</h3><p class="lead">Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p>'+
@@ -640,9 +821,34 @@ function resetTool(){
   var u=document.getElementById('finnUrl');if(u)u.value='';
   window.scrollTo({top:0,behavior:'smooth'});
 }
-function goHome(e){if(e)e.preventDefault();resetTool();}
+function goHome(e){if(e)e.preventDefault();goPage('home');resetTool();}
 
-(function(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;function init(){var t=document.querySelectorAll('#howSec .step, .band, .partner, .faq details, .section .head');t.forEach(function(el){el.classList.add('sr');});var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});t.forEach(function(el){io.observe(el);});}if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);})();
+/* ===== SIDE-ROUTER (egne "sider" i samme fil) ===== */
+function goPage(page,e){
+  if(e)e.preventDefault();
+  document.body.classList.remove('sub-sjekker','sub-reklamasjon');
+  if(page==='sjekker'){document.body.classList.add('sub-sjekker');if(location.hash!=='#/sjekker')history.pushState(null,'','#/sjekker');}
+  else if(page==='reklamasjon'){document.body.classList.add('sub-reklamasjon');if(location.hash!=='#/reklamasjon')history.pushState(null,'','#/reklamasjon');}
+  else{if(location.hash)history.pushState(null,'',location.pathname+location.search);}
+  window.scrollTo({top:0,behavior:'auto'});
+}
+function syncPageFromHash(){
+  var h=location.hash;
+  if(h==='#/sjekker')goPageState('sjekker');
+  else if(h==='#/reklamasjon')goPageState('reklamasjon');
+  else goPageState('home');
+}
+function goPageState(page){
+  document.body.classList.remove('sub-sjekker','sub-reklamasjon');
+  if(page==='sjekker')document.body.classList.add('sub-sjekker');
+  else if(page==='reklamasjon')document.body.classList.add('sub-reklamasjon');
+  window.scrollTo({top:0,behavior:'auto'});
+}
+window.addEventListener('popstate',syncPageFromHash);
+window.addEventListener('DOMContentLoaded',function(){if(location.hash==='#/sjekker'||location.hash==='#/reklamasjon')syncPageFromHash();});
+
+(function(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;function init(){var t=document.querySelectorAll('#howSec .step, .band, .partner, .faq details, .section .head, .scheck, .rek-card');t.forEach(function(el){if(!el.classList.contains('sr'))el.classList.add('sr');});var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});t.forEach(function(el){io.observe(el);});
+}if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);})();
 </script>
 </body>
 </html>
