@@ -68,6 +68,23 @@ export default async function handler(req, res) {
       return res.status(200).json({ rawLd: ldBlokker, ogDesc, ogTitle });
     }
 
+    // Diagnostikk: vis alle beskrivelseskandidater med lengde, for å finne den fulle
+    if (req.body && req.body.debugDesc === true) {
+      const kand = [];
+      const jsonFelt = [...html.matchAll(/"(?:description|adText|bodyHtml|generalText|body)"\s*:\s*"((?:[^"\\]|\\.){40,})"/gi)];
+      for (const m of jsonFelt) {
+        let tekst;
+        try { tekst = JSON.parse('"' + m[1] + '"'); } catch { tekst = m[1]; }
+        const ren = decode(stripTags(tekst));
+        kand.push({ kilde: "json-felt", lengde: ren.length, start: ren.slice(0, 120), slutt: ren.slice(-80) });
+      }
+      // Søk også bredere: alle lange tekstblokker som nevner "km" eller "kilometer"
+      const kmBlokker = [...html.matchAll(/"([^"\\]{200,}(?:km|kilometer|mil)[^"\\]{0,2000})"/gi)]
+        .slice(0, 5)
+        .map((m) => ({ kilde: "km-blokk", lengde: m[1].length, start: m[1].slice(0, 120) }));
+      return res.status(200).json({ kandidater: kand, kmBlokker });
+    }
+
     const text = extractFromFinn(html);
     diag.uttrukketLengde = text ? text.length : 0;
     diag.uttrukketStart = text ? text.slice(0, 200) : null;
