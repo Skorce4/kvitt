@@ -37,7 +37,8 @@ export default async function handler(req, res) {
     if (!text || text.length < 40) {
       return res.status(422).json({ error: "Fant ikke annonseteksten." });
     }
-    return res.status(200).json({ text });
+    const bilder = finnBilder(html);
+    return res.status(200).json({ text, bilder });
   } catch (e) {
     console.error("FINN-henting feilet:", e);
     return res.status(500).json({ error: "Noe gikk galt under henting." });
@@ -147,6 +148,33 @@ function finnFullBeskrivelse(html) {
   ekte.sort((a, b) => b.length - a.length);
   const beste = ekte[0];
   return beste && beste.length > 40 ? beste : null;
+}
+
+// Henter bilde-URLer fra FINN JSON-LD (contentUrl) + og:image som fallback.
+function finnBilder(html) {
+  const urls = [];
+  const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const m of ldMatches) {
+    try {
+      const data = JSON.parse(m[1].trim());
+      const arr = Array.isArray(data) ? data : [data];
+      for (const obj of arr) {
+        if (obj && obj.image) {
+          const imgs = Array.isArray(obj.image) ? obj.image : [obj.image];
+          for (const img of imgs) {
+            const url = typeof img === "string" ? img : (img && img.contentUrl);
+            if (url && /finncdn\.no/i.test(url)) urls.push(url);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  if (!urls.length) {
+    const og = meta(html, "og:image");
+    if (og) urls.push(og);
+  }
+  // Dedupliser, maks 6
+  return [...new Set(urls)].slice(0, 6);
 }
 
 function stripTags(s) { return String(s).replace(/<[^>]+>/g, " "); }
