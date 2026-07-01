@@ -272,6 +272,7 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 
 /* HVORFOR KVITTN – carousell-DNA seksjon */
 .why{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:0}
+.why-cv{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;opacity:.9}
 .why::before{content:'';position:absolute;width:480px;height:480px;border-radius:50%;filter:blur(90px);opacity:.28;background:radial-gradient(circle,var(--green-deep),transparent 70%);top:8%;left:-160px;z-index:0;pointer-events:none}
 .why::after{content:'';position:absolute;width:420px;height:420px;border-radius:50%;filter:blur(90px);opacity:.2;background:radial-gradient(circle,#1a3a8f,transparent 70%);bottom:6%;right:-140px;z-index:0;pointer-events:none}
 .why-grid{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 90% 60% at 50% 50%,#000 40%,transparent 85%);mask-image:radial-gradient(ellipse 90% 60% at 50% 50%,#000 40%,transparent 85%)}
@@ -561,6 +562,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 <div class="wrap home-only"><div class="results" id="results"></div></div>
 
 <section class="why landing home-only">
+  <canvas class="why-cv" id="whyCv"></canvas>
   <div class="why-grid"></div>
   <div class="why-inner">
     <span class="why-eyebrow">Hvorfor Kvittn</span>
@@ -714,24 +716,40 @@ let sb=null;try{if(SUPABASE_URL.indexOf("http")===0&&window.supabase&&window.sup
 document.getElementById('navLogo').innerHTML='<svg height="36" viewBox="0 0 200 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="196" height="44" rx="10" fill="#101a2c"/><rect x="5" y="13" width="190" height="38" rx="7.5" fill="#fff"/><path d="M5 20.5C5 16.36 8.36 13 12.5 13H44V51H12.5C8.36 51 5 47.64 5 43.5V20.5Z" fill="#0a3aa0"/><g transform="translate(15.5 19)"><rect width="18" height="13" rx="1" fill="#ba0c2f"/><rect x="5" width="3.4" height="13" fill="#fff"/><rect y="5" width="18" height="3.4" fill="#fff"/><rect x="5.8" width="1.8" height="13" fill="#00205b"/><rect y="5.8" width="18" height="1.8" fill="#00205b"/></g><text x="24.5" y="46" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="9.5" fill="#fff">N</text><text x="120" y="39" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="22" letter-spacing="1.5" fill="#101a2c">KVITTN</text><circle cx="188" cy="14" r="10" fill="#37c46f" stroke="#0f1d33" stroke-width="2"/><path d="M183.5 14l3 3 6-6.4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // splash + hero canvas (shared line-field)
-// slow glowing gradient streaks (rolig, ambient)
-function lineField(cv,color){
+// slow glowing gradient streaks (rolig, ambient) – opts styrer tetthet/lysstyrke
+function lineField(cv,color,opts){
+  opts=opts||{};
+  // Respekter reduced-motion: tegn ett stille bilde, ingen animasjon
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const count=opts.count||24;          // flere strøk enn før (var 16)
+  const alBoost=opts.alBoost||1.5;     // lysere strøk
+  const transparent=opts.transparent||false; // tegn uten navy-fyll (for seksjoner med egen bg)
   const ctx=cv.getContext('2d');let lines=[],W,H;
   function rs(){W=cv.width=cv.offsetWidth;H=cv.height=cv.offsetHeight;}rs();window.addEventListener('resize',rs);
-  function mk(){return{x:Math.random()*W,y:Math.random()*H,len:120+Math.random()*260,a:(Math.random()*.5-.25),sp:.06+Math.random()*.12,life:0,max:280+Math.random()*260,al:.04+Math.random()*.07};}
-  for(let i=0;i<16;i++){const l=mk();l.life=Math.random()*l.max;lines.push(l);}
+  function mk(){return{x:Math.random()*W,y:Math.random()*H,len:120+Math.random()*300,a:(Math.random()*.7-.35),sp:.08+Math.random()*.18,life:0,max:260+Math.random()*260,al:(.05+Math.random()*.09)*alBoost};}
+  for(let i=0;i<count;i++){const l=mk();l.life=Math.random()*l.max;lines.push(l);}
   let on=true;
-  (function d(){if(!on)return;ctx.clearRect(0,0,W,H);ctx.fillStyle='#0f1d33';ctx.fillRect(0,0,W,H);
+  (function d(){if(!on)return;
+    if(transparent){ctx.clearRect(0,0,W,H);}else{ctx.clearRect(0,0,W,H);ctx.fillStyle='#0f1d33';ctx.fillRect(0,0,W,H);}
     lines.forEach((l,i)=>{l.life++;const h=l.max/2;const al=l.life<h?(l.life/h)*l.al:((l.max-l.life)/h)*l.al;if(l.life>=l.max)lines[i]=mk();
       l.x+=Math.cos(l.a)*l.sp;l.y+=Math.sin(l.a)*l.sp;
       const x2=l.x+Math.cos(l.a)*l.len,y2=l.y+Math.sin(l.a)*l.len;
       const g=ctx.createLinearGradient(l.x,l.y,x2,y2);
       g.addColorStop(0,'rgba(55,196,111,0)');g.addColorStop(.5,'rgba(55,196,111,'+al+')');g.addColorStop(1,'rgba(55,196,111,0)');
-      ctx.save();ctx.strokeStyle=g;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
-    });requestAnimationFrame(d);})();
+      ctx.save();ctx.strokeStyle=g;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+    });if(!reduce)requestAnimationFrame(d);})();
   return ()=>{on=false;};
 }
-lineField(document.getElementById('heroCv'),'#37c46f');
+lineField(document.getElementById('heroCv'),'#37c46f',{count:26,alBoost:1.6});
+// Hvorfor-seksjon: start animasjon først når den scrolles i syne (ytelse)
+(function(){
+  const cv=document.getElementById('whyCv');if(!cv)return;
+  let started=false;
+  const io=new IntersectionObserver((en)=>{en.forEach((e)=>{
+    if(e.isIntersecting&&!started){started=true;lineField(cv,'#37c46f',{count:22,alBoost:1.5,transparent:true});io.disconnect();}
+  });},{threshold:.05});
+  io.observe(cv.parentElement);
+})();
 const stopSplash=lineField(document.getElementById('splashCv'),'#37c46f');
 setTimeout(()=>document.getElementById('splashMark').classList.add('show'),350);
 setTimeout(()=>{document.getElementById('splash').classList.add('gone');stopSplash();},2300);
