@@ -52,6 +52,7 @@ export default async function handler(req, res) {
 `Du er ekspert på norsk privatbilsalg og kjøpsloven. DU snakker direkte til en privatperson som selger SIN EGEN bil og har limt inn FINN-annonsen sin under. Vurder reklamasjonsrisikoen.
 
 VIKTIG om risikovurderingen:
+- Annonsen kan inneholde en "Fakta:"-seksjon med strukturerte opplysninger (Kilometerstand, Modellår, Girkasse, Drivstoff osv.) hentet fra FINN. Disse teller som OPPGITT informasjon. Ikke flagg noe som "mangler" hvis det står i Fakta-seksjonen – f.eks. hvis "Kilometerstand: 143 000 km" står der, er km oppgitt og skal IKKE flagges som manglende.
 - Når selger ÅPENT opplyser om noe (kommende EU-kontroll, kjente feil, slitasje, tidligere skader), er det POSITIVT (level "ok") – åpenhet reduserer reklamasjonsrisiko. Ikke flagg ærlig informasjon som en risiko i seg selv.
 - Ekte RISIKO er: manglende «solgt som den er»-forbehold, fortielse av kjente feil, vage superlativer uten dekning, manglende sentrale opplysninger (km, år), eller modifikasjoner/tuning som ikke er opplyst.
 - En kommende EU-kontroll er kun en risiko hvis selger LOVER et bestemt utfall («går rett gjennom EU»). Å opplyse om at den skal til kontroll er bra.
