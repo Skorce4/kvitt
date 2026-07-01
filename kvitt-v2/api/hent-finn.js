@@ -59,6 +59,15 @@ export default async function handler(req, res) {
     diag.harOgTitle = html.includes("og:title");
     diag.harCloudflare = /just a moment|cf-browser-verification|challenge-platform/i.test(html);
 
+    // Ekstra diagnostikk: vis rå JSON-LD-blokker + og:description
+    if (req.body && req.body.rawLd === true) {
+      const ldBlokker = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
+        .map((m) => m[1].trim().slice(0, 1500));
+      const ogDesc = meta(html, "og:description");
+      const ogTitle = meta(html, "og:title");
+      return res.status(200).json({ rawLd: ldBlokker, ogDesc, ogTitle });
+    }
+
     const text = extractFromFinn(html);
     diag.uttrukketLengde = text ? text.length : 0;
     diag.uttrukketStart = text ? text.slice(0, 200) : null;
