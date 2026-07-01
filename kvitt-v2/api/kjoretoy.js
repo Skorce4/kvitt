@@ -39,12 +39,6 @@ export default async function handler(req, res) {
     }
 
     const data = await r.json();
-
-    // Debug: returner rå respons for å finne riktige feltstier
-    if (req.body && req.body.debug === true) {
-      return res.status(200).json({ ok: true, raw: data });
-    }
-
     const kort = trekkUtNyttig(data);
     return res.status(200).json({ ok: true, data: kort });
   } catch (e) {
@@ -54,32 +48,40 @@ export default async function handler(req, res) {
 }
 
 // Plukker ut de mest nyttige feltene fra vegvesen-responsen for annonseanalyse.
-// Strukturen er dyp; vi henter defensivt og hopper over det som mangler.
+// Feltstier verifisert mot faktisk API-respons.
 function trekkUtNyttig(data) {
-  const kt = (data && data.kjoretoydataListe && data.kjoretoydataListe[0]) || data || {};
+  const kt = (data && data.kjoretoydataListe && data.kjoretoydataListe[0]) || {};
   const tekn = kt.godkjenning?.tekniskGodkjenning?.tekniskeData || {};
-  const reg = kt.registrering || {};
   const forstegang = kt.forstegangsregistrering || {};
   const periodisk = kt.periodiskKjoretoyKontroll || {};
+  const miljoGruppe = tekn.miljodata?.miljoOgdrivstoffGruppe?.[0] || {};
 
-  const ut = {
-    merke: firstOf(tekn.generelt?.merke, "merke"),
+  // Effekt: summer alle motorer (elbiler har ofte to – for/bak). Ta høyeste enkelt + total.
+  const motorer = tekn.motorOgDrivverk?.motor || [];
+  let maksEffekt = null;
+  for (const m of motorer) {
+    const eff = m.drivstoff?.[0]?.maksNettoEffekt;
+    if (eff && (!maksEffekt || eff > maksEffekt)) maksEffekt = eff;
+  }
+
+  // Rekkevidde (elbil) fra WLTP hvis tilgjengelig
+  const wltp = miljoGruppe.forbrukOgUtslipp?.[0]?.wltpKjoretoyspesifikk || {};
+
+  return {
+    merke: tekn.generelt?.merke?.[0]?.merke || null,
     modell: tekn.generelt?.handelsbetegnelse?.[0] || null,
     farge: tekn.karosseriOgLasteplan?.rFarge?.[0]?.kodeNavn || null,
-    forstegangRegistrertNorge: forstegang?.registrertForstegangNorgeDato || null,
-    drivstoff: tekn.miljodata?.miljoOgdrivstoffgruppe?.[0]?.drivstoffKodeMiljodata?.kodeNavn || null,
-    effektKw: tekn.motorOgDrivverk?.motor?.[0]?.drivstoff?.[0]?.maksNettoEffekt || null,
+    karosseri: tekn.karosseriOgLasteplan?.karosseritype?.kodeNavn || null,
+    antallDorer: tekn.karosseriOgLasteplan?.antallDorer?.[0] || null,
+    drivstoff: miljoGruppe.drivstoffKodeMiljodata?.kodeNavn || null,
+    girkasse: tekn.motorOgDrivverk?.girkassetype?.kodeNavn || null,
+    effektKw: maksEffekt,
+    maksHastighet: tekn.motorOgDrivverk?.maksimumHastighet?.[0] || null,
     egenvekt: tekn.vekter?.egenvekt || null,
-    // EU-kontroll: nettopp det Kjerra bruker
+    tillattTilhengerBrems: tekn.vekter?.tillattTilhengervektMedBrems ?? null,
+    rekkeviddeKm: wltp.rekkeviddeKmBlandetkjoring || null,
+    forstegangRegistrertNorge: forstegang?.registrertForstegangNorgeDato || null,
     sisteEuKontroll: periodisk?.sistGodkjent || null,
     nesteEuKontroll: periodisk?.kontrollfrist || null,
   };
-  return ut;
-}
-
-function firstOf(arr) {
-  if (Array.isArray(arr) && arr.length) {
-    return arr[0]?.merke || arr[0]?.kodeNavn || arr[0] || null;
-  }
-  return arr || null;
 }
