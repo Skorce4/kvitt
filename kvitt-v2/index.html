@@ -14,7 +14,7 @@
 :root{
   --navy:#0f1d33; --navy2:#16284a; --navy3:#1e3a5f;
   --ink:#101a2c; --ink2:#46546b; --ink3:#8893a4;
-  --green:#2f9e5f; --green-bright:#37c46f; --green-light:#e4f3ea; --green-mid:#bce3cd;
+  --green:#2f9e5f; --green-bright:#37c46f; --green-deep:#2f9e5f; --green-light:#e4f3ea; --green-mid:#bce3cd;
   --paper:#F6F4EF; --paper2:#EFEBE2; --surface:#fff; --line:#E4DFD4; --line2:#D2CCBE;
   --red:#cf3d33; --red-light:#fbe6e4;
   --amber:#c7841b; --amber-light:#f9edd6;
@@ -62,15 +62,19 @@ body.result-mode .nav-link{display:none}
 @media(max-width:780px){.nav-link{display:none}.nav-tag{display:none}}
 
 /* HERO (dark) */
-.hero{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:72px 0 96px}
+.hero{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:80px 0 96px}
 .hero canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.5}
+/* Ambient glød – carousell-DNA */
+.hero::before{content:'';position:absolute;width:520px;height:520px;border-radius:50%;filter:blur(90px);opacity:.32;background:radial-gradient(circle,var(--green-deep,#2f9e5f),transparent 70%);top:-180px;right:-140px;z-index:0;pointer-events:none}
+/* Hårlinje-grid som fader ut – carousell-DNA */
+.hero-grid{position:absolute;inset:0;z-index:1;opacity:.6;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:52px 52px;-webkit-mask-image:radial-gradient(ellipse 75% 70% at 50% 35%,#000 30%,transparent 78%);mask-image:radial-gradient(ellipse 75% 70% at 50% 35%,#000 30%,transparent 78%)}
 .hero .wrap{position:relative;z-index:2;max-width:1120px;margin:0 auto;padding:0 24px;text-align:center}
-.hero-eyebrow{color:var(--green-bright);margin-bottom:22px;display:inline-flex;align-items:center;gap:9px}
-.hero-eyebrow::before,.hero-eyebrow::after{content:'';width:24px;height:1px;background:rgba(55,196,111,.4)}
-.hero h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(36px,6vw,60px);line-height:1.05;letter-spacing:-1.5px;margin-bottom:20px}
+.hero-eyebrow{color:var(--green-bright);margin-bottom:22px;display:inline-flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;font-weight:500}
+.hero-eyebrow::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 10px var(--green-bright);flex:none}
+.hero h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(38px,6.5vw,64px);line-height:1.02;letter-spacing:-2px;margin-bottom:20px}
 .hero h1 .hl{color:var(--green-bright)}
-.hero .sub{font-size:18px;color:rgba(255,255,255,.72);max-width:520px;margin:0 auto;line-height:1.6}
-.hero-wave{position:absolute;bottom:-1px;left:0;right:0;z-index:1;line-height:0}
+.hero .sub{font-family:'Poppins',sans-serif;font-weight:300;font-size:18px;color:rgba(255,255,255,.72);max-width:530px;margin:0 auto;line-height:1.6}
+.hero-wave{position:absolute;bottom:-1px;left:0;right:0;z-index:3;line-height:0}
 .hero-wave svg{width:100%;height:60px;display:block}
 
 /* CHECKER (overlaps hero/content seam) */
@@ -266,8 +270,35 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 .partner a{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:14.5px;padding:15px 24px;border-radius:var(--r);transition:.18s}
 .partner a:hover{background:var(--navy2);transform:translateY(-2px)}
 
-.faq{max-width:640px;margin:0 auto}
-details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:9px;overflow:hidden;box-shadow:var(--sh)}
+/* HVORFOR KVITTN – carousell-DNA seksjon */
+.why{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:0}
+.why::before{content:'';position:absolute;width:480px;height:480px;border-radius:50%;filter:blur(90px);opacity:.28;background:radial-gradient(circle,var(--green-deep),transparent 70%);top:8%;left:-160px;z-index:0;pointer-events:none}
+.why::after{content:'';position:absolute;width:420px;height:420px;border-radius:50%;filter:blur(90px);opacity:.2;background:radial-gradient(circle,#1a3a8f,transparent 70%);bottom:6%;right:-140px;z-index:0;pointer-events:none}
+.why-grid{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 90% 60% at 50% 50%,#000 40%,transparent 85%);mask-image:radial-gradient(ellipse 90% 60% at 50% 50%,#000 40%,transparent 85%)}
+.why-inner{position:relative;z-index:2;max-width:760px;margin:0 auto;padding:96px 28px}
+.why-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--green-bright);display:inline-flex;align-items:center;gap:10px;margin-bottom:56px}
+.why-eyebrow::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 10px var(--green-bright)}
+.why-block{margin-bottom:88px}
+.why-block:last-child{margin-bottom:0}
+.why-num{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:18px}
+.why-h{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-1.2px;color:#fff;margin-bottom:20px}
+.why-h .g{color:var(--green-bright)}
+.why-p{font-family:'Poppins',sans-serif;font-weight:300;font-size:18px;line-height:1.65;color:rgba(255,255,255,.72);max-width:90%}
+.why-stats{display:flex;gap:16px;margin-top:32px;flex-wrap:wrap}
+.why-stat{flex:1;min-width:150px;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px;background:rgba(255,255,255,.02)}
+.why-stat .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;color:#fff;line-height:1}
+.why-stat .l{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:10px}
+.why-steps{margin-top:28px}
+.why-step{display:flex;align-items:center;gap:18px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.why-step:last-child{border-bottom:none}
+.why-step .sn{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--green-bright);font-weight:500;min-width:26px}
+.why-step .st{font-family:'Poppins',sans-serif;font-weight:400;font-size:18px;color:#fff}
+.why-cta{margin-top:40px}
+.why-cta a{display:inline-flex;align-items:center;gap:10px;background:var(--green);color:#04140a;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;padding:16px 34px;border-radius:100px;box-shadow:0 8px 30px rgba(55,196,111,.32);text-decoration:none;transition:.18s}
+.why-cta a:hover{background:var(--green-bright);transform:translateY(-2px)}
+.why-wave-top{position:absolute;top:-1px;left:0;right:0;z-index:1;line-height:0;transform:rotate(180deg)}
+.why-wave-top svg{width:100%;height:50px;display:block}
+.faq{max-width:640px;margin:0 auto}details{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:9px;overflow:hidden;box-shadow:var(--sh)}
 summary{padding:17px 20px;font-weight:600;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px}
 summary::-webkit-details-marker{display:none}
 summary::after{content:'+';font-size:21px;color:var(--green);font-weight:400}
@@ -483,6 +514,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 <a id="top"></a>
 <header class="hero landing home-only">
   <canvas id="heroCv"></canvas>
+  <div class="hero-grid"></div>
   <div class="hero-wave"><svg viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 60 L0 30 Q 300 0 600 28 T 1200 26 L1200 60 Z" fill="#F6F4EF"/></svg></div>
   <div class="wrap">
     <span class="hero-eyebrow lbl">For deg som selger bil privat</span>
@@ -527,6 +559,41 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 </div>
 
 <div class="wrap home-only"><div class="results" id="results"></div></div>
+
+<section class="why landing home-only">
+  <div class="why-grid"></div>
+  <div class="why-inner">
+    <span class="why-eyebrow">Hvorfor Kvittn</span>
+
+    <div class="why-block">
+      <div class="why-num">01 — Problemet</div>
+      <h2 class="why-h">Solgt betyr ikke<br><span class="g">ferdig.</span></h2>
+      <p class="why-p">Privat bilsalg er dekket av kjøpsloven. Oppdager kjøperen noe du ikke nevnte — en feil, en mangel, noe uklart i annonsen — kan de komme tilbake med krav uker etter at pengene er på konto.</p>
+    </div>
+
+    <div class="why-block">
+      <div class="why-num">02 — Risikoen</div>
+      <h2 class="why-h">Én setning kan koste<br>deg <span class="g">titusener.</span></h2>
+      <p class="why-p">De fleste reklamasjoner starter ikke i bilen. De starter i teksten — i det du skrev, eller det du glemte å skrive. Uklare formuleringer og manglende forbehold er det kjøperen bygger kravet sitt på.</p>
+      <div class="why-stats">
+        <div class="why-stat"><div class="n">12 200,-</div><div class="l">Snitt feil per bruktbil</div></div>
+        <div class="why-stat"><div class="n">Uker</div><div class="l">Etter salg kan krav komme</div></div>
+      </div>
+    </div>
+
+    <div class="why-block">
+      <div class="why-num">03 — Løsningen</div>
+      <h2 class="why-h">Kvittn leser annonsen<br>som en <span class="g">motpart.</span></h2>
+      <p class="why-p">Lim inn FINN-annonsen din. Kvittn finner hullene som kan gi reklamasjon, henter offisielle data fra Statens vegvesen, flagger kjente svakheter ved modellen — og gir deg en tekst som tetter hullene før du publiserer.</p>
+      <div class="why-steps">
+        <div class="why-step"><span class="sn">01</span><span class="st">Lim inn FINN-lenken din</span></div>
+        <div class="why-step"><span class="sn">02</span><span class="st">Få en trygghetsscore og konkrete funn</span></div>
+        <div class="why-step"><span class="sn">03</span><span class="st">Kopier den sikre teksten rett inn i annonsen</span></div>
+      </div>
+      <div class="why-cta"><a href="#" onclick="document.getElementById('inputPanel').scrollIntoView({behavior:'smooth'});return false;">Sjekk annonsen din<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+    </div>
+  </div>
+</section>
 
 <section class="section landing home-only" id="howSec"><div class="wrap">
   <div class="head"><span class="sec-label lbl">Slik fungerer det</span><h2>Tre steg, ingen innlogging</h2></div>
