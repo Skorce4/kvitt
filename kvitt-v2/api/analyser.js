@@ -44,58 +44,72 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Annonseteksten er for kort." });
     }
 
-    const metaPrompt =
-`Du er ekspert på norsk privatbilsalg og kjøpsloven. DU snakker direkte til en privatperson som selger SIN EGEN bil og har limt inn FINN-annonsen sin under. Vurder RISIKOEN for at kjøperen kommer tilbake og krever penger (reklamasjon etter kjøpsloven, opplysningsplikt).
+    // ETT samlet prompt. Diagnose (flags) og forbedret tekst (improved/legal)
+    // lages i SAMME kall, slik at teksten ikke kan motsi diagnosen. Modellen
+    // fører selv en "banned"-liste over subjektive fraser den flagger, og de
+    // frasene er forbudt i improved/legal.
+    const fullPrompt =
+`Du er ekspert på norsk privatbilsalg og kjøpsloven. DU snakker direkte til en privatperson som selger SIN EGEN bil og har limt inn FINN-annonsen sin under. Du skal både VURDERE reklamasjonsrisikoen og SKRIVE en forbedret annonse – i samme svar, som en sammenhengende helhet.
 
-VIKTIG om vurderingen:
-- Når selger ÅPENT opplyser om noe (f.eks. at bilen snart skal til EU-kontroll, kjente feil, slitasje, tidligere skader), er det POSITIVT (level "ok") – åpenhet reduserer reklamasjonsrisiko. Ikke flagg ærlig informasjon som en risiko i seg selv.
-- Ekte RISIKO er det motsatte: manglende «solgt som den er»-forbehold, fortielse av kjente feil, vage superlativer uten dekning, manglende sentrale opplysninger (km, år), eller modifikasjoner/tuning som ikke er opplyst.
-- En kommende EU-kontroll er kun en risiko hvis selger LOVER et bestemt utfall (f.eks. «går rett gjennom EU»). Selve det å opplyse om at den skal til kontroll er bra.
+VIKTIG om risikovurderingen (flags):
+- Når selger ÅPENT opplyser om noe (kommende EU-kontroll, kjente feil, slitasje, tidligere skader), er det POSITIVT (level "ok") – åpenhet reduserer reklamasjonsrisiko. Ikke flagg ærlig informasjon som en risiko i seg selv.
+- Ekte RISIKO er: manglende «solgt som den er»-forbehold, fortielse av kjente feil, vage superlativer uten dekning, manglende sentrale opplysninger (km, år), eller modifikasjoner/tuning som ikke er opplyst.
+- En kommende EU-kontroll er kun en risiko hvis selger LOVER et bestemt utfall («går rett gjennom EU»). Å opplyse om at den skal til kontroll er bra.
 
-Svar KUN med gyldig JSON. Ingen markdown, ingen backticks, ingen tekst rundt. Ikke bruk linjeskift inne i tekstverdiene. Struktur:
-{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}]}
-Lag 4-6 flags. Annonse:
-"""${text}"""`;
+DEN VIKTIGSTE REGELEN – INGEN SELVMOTSIGELSE:
+Hver subjektiv frase du flagger i "flags" (f.eks. «strøken», «meget godt vedlikeholdt», «går som ei kule», «pent brukt», «alt man kan ønske seg») skal du føre opp i listen "banned". Disse frasene er ABSOLUTT FORBUDT å bruke i "improved" og "legal". Du kan ikke advare mot en formulering og samtidig bruke den selv. Erstatt den med konkrete, etterprøvbare fakta i stedet. Mangler fakta, skriv [fyll inn ...].
 
-    const textPrompt =
-`Du er ekspert på norsk privatbilsalg. DU hjelper en privatperson som selger SIN EGEN bil. Annonsen er skrevet i førsteperson av eieren selv – behold det perspektivet («jeg», «eier», «selger»), aldri formuler det som om en tredjepart selger på vegne av noen.
-
-KRITISK regel for den forbedrede teksten og forbeholdet:
-- ALDRI lov et fremtidig utfall. Skriv ALDRI noe i retning av at bilen «bør gå gjennom EU-kontroll», «går rett gjennom EU», «vil bestå kontroll» e.l. Slike løfter skaper reklamasjonsrisiko.
-- Beskriv i stedet kun det eier FAKTISK VET I DAG, med forbehold. Trygge formuleringer å bruke (velg det som passer, ev. omskriv lett):
+KRITISK regel for improved og legal:
+- Behold eierens førsteperson («jeg», «eier», «selger»), aldri som om en tredjepart selger.
+- ALDRI lov et fremtidig utfall («bør gå gjennom EU-kontroll», «går rett gjennom EU», «vil bestå kontroll»). Slike løfter skaper reklamasjonsrisiko.
+- Beskriv kun det eier VET I DAG, med forbehold. Trygge formuleringer:
   • «Ingen kjente feil eller mangler som eier er kjent med per dags dato.»
-  • «Ingen kjente feil som eier er kjent med som bør hindre godkjenning ved EU-kontroll.»
   • «Etter min vurdering fremstår bilen i god teknisk stand.»
-  • «Bilen fungerer som normalt og uten kjente mangler av betydning.»
   • «Kjøper oppfordres til å foreta egen vurdering av bilens tilstand.»
-- Hvis originalannonsen lover et fremtidig EU-utfall, SKRIV OM det til en slik trygg, nåtidsbasert formulering.
+- Behold alle fakta fra originalen (merke, km, år, pris).
 
-Lag to ting og svar KUN med gyldig JSON, ingen markdown, ingen backticks. Bruk \\n for linjeskift inne i verdiene, aldri ekte linjeskift.
-{"legal":"<ferdig forbeholdstekst på norsk tilpasset bilen, klar å lime nederst i annonsen. Inkluder 'solgt som den er', oppfordring til visning/prøvekjøring, og en nåtidsbasert formulering om kjente feil (se reglene over). Maks 6 setninger.>","improved":"<forbedret versjon av HELE annonseteksten i eierens førsteperson. Behold alle fakta fra originalen (merke, km, år, pris). Gjør den ryddig, tillitsvekkende og selgende. Følg KRITISK-regelen over – ingen løfter om fremtidig kontroll. Mangler viktig info, skriv [fyll inn ...]. Bruk \\n for avsnitt.>","questions":[{"q":"<spørsmål kjøperen sannsynligvis stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
-Lag 4-5 questions. Annonse:
+Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Bruk \\n for linjeskift inne i verdiene, aldri ekte linjeskift. Struktur:
+{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall eller null>,"begrunnelse":"<kort begrunnelse>"},"legal":"<forbeholdstekst, maks 6 setninger, uten forbudte fraser>","improved":"<forbedret annonsetekst i førsteperson, uten en eneste forbudt frase, bruk \\n for avsnitt>","questions":[{"q":"<spørsmål kjøperen stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
+Lag 4-6 flags og 4-5 questions. Annonse:
 """${text}"""`;
 
-    const [metaRaw, textRaw] = await Promise.all([
-      callClaude(apiKey, metaPrompt, 1200),
-      callClaude(apiKey, textPrompt, 2600),
-    ]);
+    const raw = await callClaude(apiKey, fullPrompt, 3200);
+    const r = parseJson(raw);
 
-    const meta = parseJson(metaRaw);
-    const texts = parseJson(textRaw);
+    // Sikkerhetsnett: dersom modellen tross alt gjenbruker en forbudt frase,
+    // bytt den ut før den når brukeren. Da ser brukeren aldri en selvmotsigelse.
+    if (Array.isArray(r.banned) && r.banned.length) {
+      r.improved = rensForbudte(r.improved, r.banned);
+      r.legal = rensForbudte(r.legal, r.banned);
+    }
 
     return res.status(200).json({
-      score: meta.score,
-      label: meta.label,
-      blurb: meta.blurb,
-      flags: meta.flags,
-      legal: texts.legal,
-      improved: texts.improved,
-      questions: texts.questions || [],
+      score: r.score,
+      label: r.label,
+      blurb: r.blurb,
+      flags: r.flags,
+      reklamasjon: r.reklamasjon || null,
+      legal: r.legal,
+      improved: r.improved,
+      questions: r.questions || [],
     });
   } catch (err) {
     console.error("Analyse-feil:", err);
     return res.status(500).json({ error: "Klarte ikke å fullføre analysen.", detail: String(err && err.message || err) });
   }
+}
+
+// Bytter ut forbudte fraser (fra "banned") med en nøytral markør.
+// Sikkerhetsnett mot selvmotsigelse hvis modellen skulle glippe.
+function rensForbudte(tekst, banned) {
+  if (!tekst) return tekst;
+  let ut = tekst;
+  for (const frase of banned) {
+    if (!frase || String(frase).length < 3) continue;
+    const re = new RegExp(String(frase).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    ut = ut.replace(re, "[beskriv konkret]");
+  }
+  return ut;
 }
 
 async function callClaude(apiKey, prompt, maxTokens) {
