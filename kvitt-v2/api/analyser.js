@@ -53,6 +53,8 @@ export default async function handler(req, res) {
 
 VIKTIG om risikovurderingen:
 - Annonsen kan inneholde en "Fakta:"-seksjon med strukturerte opplysninger (Kilometerstand, Modellår, Girkasse, Drivstoff osv.) hentet fra FINN. Disse teller som OPPGITT informasjon. Ikke flagg noe som "mangler" hvis det står i Fakta-seksjonen – f.eks. hvis "Kilometerstand: 143 000 km" står der, er km oppgitt og skal IKKE flagges som manglende.
+- Plassholdere i klammeform som [fyll inn ...] betyr at selgeren skal fylle inn dette FØR publisering. Behandle dem som informasjon som KOMMER til å bli oppgitt – ikke straff scoren for dem og ikke flagg dem som manglende opplysninger. Vurder teksten som om plassholderne blir fylt ut.
+- BELØNN ÅPENHET. Når en annonse NEVNER en svakhet åpent (rust, høy km, kjente feil, tidligere skader, modifikasjoner), er det POSITIVT og skal gi HØYERE score – ikke lavere. Åpenhet reduserer reklamasjonsrisiko fordi kjøper ikke kan hevde å ha blitt villedet. En ærlig, detaljert annonse som nevner rust skal score HØYERE enn en vag annonse som skjuler den. Ikke forveksle "nevner en risiko" (bra) med "har en skjult risiko" (dårlig).
 - Når selger ÅPENT opplyser om noe (kommende EU-kontroll, kjente feil, slitasje, tidligere skader), er det POSITIVT (level "ok") – åpenhet reduserer reklamasjonsrisiko. Ikke flagg ærlig informasjon som en risiko i seg selv.
 - Ekte RISIKO er: manglende «solgt som den er»-forbehold, fortielse av kjente feil, vage superlativer uten dekning, manglende sentrale opplysninger (km, år), eller modifikasjoner/tuning som ikke er opplyst.
 - En kommende EU-kontroll er kun en risiko hvis selger LOVER et bestemt utfall («går rett gjennom EU»). Å opplyse om at den skal til kontroll er bra.
