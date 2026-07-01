@@ -384,6 +384,13 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .tamed{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line2)}
 .tamed-t{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
 .tamedbtn{width:100%}
+.mscard{background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-radius:12px;padding:6px 18px}
+.msrow{display:flex;gap:12px;padding:14px 0;border-bottom:1px dashed var(--line2)}
+.msrow:last-child{border-bottom:none}
+.msdot{font-size:18px;flex:0 0 auto;line-height:1.4}
+.msrow b{display:block;font-size:15px;color:var(--ink);margin-bottom:3px}
+.msrow p{margin:0;font-size:14px;color:var(--ink2);line-height:1.5}
+.mscard+.simnote{margin-top:12px}
 .bilkar{margin-bottom:16px;border-radius:12px;overflow:hidden}
 .bilkar-view{position:relative;aspect-ratio:16/10;background:#0d1626;border-radius:12px;overflow:hidden}
 .bilkar-view img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .12s}
@@ -709,7 +716,18 @@ async function analyze(){
     // Vis diagnosen umiddelbart. Tekst-delen (forbehold/annonse/spørsmål) hentes
     // i bakgrunnen og fylles inn når klar – brukeren ser scoren på halve tiden.
     r.legal=null;r.improved=null;r.questions=null;r._laster=true;
+    // Sjekk om reg.nr finnes FØR render, så vegvesen-steget vises fra start
+    const regMatch=(r._text||text||'').match(/(?:reg\.?nr\.?|registreringsnummer|kjennemerke)[:\s]*([A-Z]{2}\s?\d{4,5}|[A-Z0-9]{2,7})/i);
+    window.__vegvesen=null;window.__vegvesenTom=false;
+    window.__vegvesenVenter=!!(regMatch&&regMatch[1]);
     render(r);bumpCounter();loadCounter();
+    if(regMatch&&regMatch[1]){
+      fetch('/api/kjoretoy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({regnr:regMatch[1]})})
+        .then(async(vr)=>{const vd=await vr.json().catch(()=>({}));
+          if(vd&&vd.ok&&vd.data){window.__vegvesen=vd.data;window.__vegvesenVenter=false;oppdaterVegvesenSteg();}
+          else{window.__vegvesenVenter=false;window.__vegvesenTom=true;oppdaterVegvesenSteg();}
+        }).catch(()=>{window.__vegvesenVenter=false;window.__vegvesenTom=true;oppdaterVegvesenSteg();});
+    }
     // Bakgrunnskall for annonsetekst, med banned-listen så ingen selvmotsigelse
     fetch('/api/analyser-tekst',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:r._text||text,banned:r.banned||[]})})
       .then(async(tr)=>{const td=await tr.json().catch(()=>({}));
@@ -803,6 +821,37 @@ function render(r){
   const laster=r._laster;
   const spinner='<div class="tekstlaster"><span class="tspin"></span><span>Skriver forbedret tekst...</span></div>';
 
+  // Offisielle data fra Statens vegvesen (kun hvis reg.nr fantes i teksten)
+  if(window.__vegvesenVenter||window.__vegvesen){
+    steps.push({label:'Offisielt',render:()=>{
+      const v=window.__vegvesen;
+      const head='<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🏛️</span>Offisielle data</div>'+
+        '<h3>Bekreftet hos Statens vegvesen</h3>';
+      if(window.__vegvesenTom){
+        return head+'<p class="lead">Fant ikke offisielle data for registreringsnummeret i annonsen. Sjekk at reg.nr er korrekt oppgitt.</p>';
+      }
+      if(!v){
+        return head+'<p class="lead">Henter offisielle kjøretøydata basert på registreringsnummeret i annonsen.</p><div class="tekstlaster"><span class="tspin"></span><span>Henter offentlige data...</span></div>';
+      }
+      const rad=(lab,val)=>val?'<div class="simrow"><span class="simlab">'+lab+'</span><span class="simval" style="font-size:15px">'+esc(String(val))+'</span></div>':'';
+      return head+'<p class="lead">Hentet direkte fra det offentlige kjøretøyregisteret. Bruk dette til å bekrefte at annonsen stemmer.</p>'+
+        '<div class="simcard">'+
+          rad('Merke',v.merke)+rad('Modell',v.modell)+rad('Farge',v.farge)+
+          rad('Drivstoff',v.drivstoff)+rad('Effekt (kW)',v.effektKw)+rad('Egenvekt (kg)',v.egenvekt)+
+          rad('Sist EU-godkjent',v.sisteEuKontroll)+rad('Neste EU-frist',v.nesteEuKontroll)+
+        '</div>'+
+        '<p class="simnote">Offentlige data fra Statens vegvesen. Avvik mellom disse og annonsen bør du rette opp før publisering.</p>';
+    }});
+  }
+  // Modellsjekk: kjente svakheter for denne bilmodellen
+  if(r.modellsjekk&&r.modellsjekk.length){
+    const punkter=r.modellsjekk.map((m)=>'<div class="msrow"><span class="msdot">🔧</span><div><b>'+esc(m.punkt)+'</b><p>'+esc(m.hvorfor)+'</p></div></div>').join('');
+    steps.push({label:'Modellsjekk',html:
+      '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">🔧</span>Kjent om denne modellen</div>'+
+      '<h3>Sjekk før du lager annonsen</h3><p class="lead">Kjente svakheter for '+esc((r.blurb||'').split('.')[0]||'denne modellen')+'. Vær åpen om det du finner – det reduserer reklamasjonsrisiko.</p>'+
+      '<div class="mscard">'+punkter+'</div>'+
+      '<p class="simnote">Basert på generelle kjente svakheter for modellen. Ikke en garanti for at din bil har disse feilene – sjekk selv.</p>'});
+  }
   steps.push({label:'Forbehold',render:()=>{
     const a=window.__analyse;
     return '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
@@ -905,6 +954,11 @@ function oppdaterTekstSteg(){
   if(!WIZ.steps.length)return;
   const s=WIZ.steps[WIZ.i];
   if(s&&s.render)drawStep(); // bare dynamiske steg trenger re-render
+}
+function oppdaterVegvesenSteg(){
+  if(!WIZ.steps.length)return;
+  const s=WIZ.steps[WIZ.i];
+  if(s&&s.render&&s.label==='Offisielt')drawStep();
 }
 function wizGo(d){const prev=WIZ.i;WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));if(WIZ.i===prev)return;drawStep(d);}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
