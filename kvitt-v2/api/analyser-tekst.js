@@ -34,7 +34,7 @@ KRITISK regel:
 - Behold alle fakta fra originalen (merke, km, år, pris).${bannedTekst}
 
 Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Bruk \\n for linjeskift inne i verdiene, aldri ekte linjeskift. Struktur:
-{"legal":"<forbeholdstekst på norsk tilpasset bilen, klar å lime nederst i annonsen. Inkluder 'solgt som den er', oppfordring til visning/prøvekjøring, og en nåtidsbasert formulering om kjente feil. Maks 6 setninger.>","improved":"<forbedret versjon av HELE annonseteksten i eierens førsteperson. Behold alle fakta. Gjør den ryddig, tillitsvekkende og selgende. Ingen forbudte fraser. Mangler info, skriv [fyll inn ...]. Bruk \\n for avsnitt.>","questions":[{"q":"<spørsmål kjøperen sannsynligvis stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
+{"nyScore":<0-100: hvor godt beskyttet selgeren ville vært HVIS de bruker den forbedrede teksten og forbeholdet under. Skal være høyere enn originalen fordi teksten er forbedret, typisk 88-96 hvis alle råd følges>,"legal":"<forbeholdstekst på norsk tilpasset bilen, klar å lime nederst i annonsen. Inkluder 'solgt som den er', oppfordring til visning/prøvekjøring, og en nåtidsbasert formulering om kjente feil. Maks 6 setninger.>","improved":"<forbedret versjon av HELE annonseteksten i eierens førsteperson. Behold alle fakta. Gjør den ryddig, tillitsvekkende og selgende. Ingen forbudte fraser. Mangler info, skriv [fyll inn ...]. Bruk \\n for avsnitt.>","questions":[{"q":"<spørsmål kjøperen sannsynligvis stiller>","why":"<hvorfor selger bør ha svar klart>"}]}
 Lag 4-5 questions. Annonse:
 """${text}"""`;
 
@@ -53,6 +53,7 @@ Lag 4-5 questions. Annonse:
     }
 
     return res.status(200).json({
+      nyScore: r.nyScore != null ? r.nyScore : null,
       legal: r.legal,
       improved: r.improved,
       questions: r.questions || [],
