@@ -21,17 +21,13 @@ export default async function handler(req, res) {
     diag.zyteKeyFinnes = !!zyteKey;
 
     if (zyteKey) {
-      diag.steg.push("Zyte-nøkkel funnet, prøver httpResponseBody");
-      html = await hentViaZyte(url, zyteKey, false);
-      diag.steg.push("httpResponseBody ga " + (html ? html.length + " tegn" : "null"));
-      if (!html || !harInnhold(html)) {
-        diag.steg.push("Ikke nok innhold, eskalerer til browserHtml");
-        html = await hentViaZyte(url, zyteKey, true);
-        diag.steg.push("browserHtml ga " + (html ? html.length + " tegn" : "null"));
-        diag.brukteMetode = "browserHtml";
-      } else {
-        diag.brukteMetode = "httpResponseBody";
-      }
+      // Bruk browserHtml direkte. FINN pakker annonseteksten i JS/enkodet data
+      // i rå server-HTML (httpResponseBody), men browserHtml kjører siden i en
+      // ekte nettleser hos Zyte, så teksten er ferdig rendret og lesbar.
+      diag.steg.push("Henter via browserHtml (rendret)");
+      html = await hentViaZyte(url, zyteKey, true);
+      diag.steg.push("browserHtml ga " + (html ? html.length + " tegn" : "null"));
+      diag.brukteMetode = "browserHtml";
     } else {
       diag.steg.push("INGEN Zyte-nøkkel – prøver direkte (blir blokkert av Cloudflare)");
       for (let attempt = 0; attempt < 2 && !html; attempt++) {
@@ -219,30 +215,37 @@ function extractFromFinn(html) {
   return clean.join("\n\n").slice(0, 6000);
 }
 
-// Leter etter den fulle annonsebeskrivelsen i FINN-HTML.
-// FINN bruker ulike mønstre; vi prøver flere og tar den lengste treffet.
+// Leter etter den fulle annonsebeskrivelsen. Med browserHtml er teksten rendret
+// i faktiske HTML-elementer, så vi søker i DOM-strukturen FINN bruker.
 function finnFullBeskrivelse(html) {
   const kandidater = [];
 
-  // Mønster A: JSON-felt "description" eller "adText" i inline state (ikke JSON-LD)
-  const jsonFelt = [...html.matchAll(/"(?:description|adText|bodyHtml|generalText|body)"\s*:\s*"((?:[^"\\]|\\.){40,})"/gi)];
-  for (const m of jsonFelt) {
-    try {
-      // Verdien er JSON-escaped – tolk den ved å pakke i anførselstegn
-      const tekst = JSON.parse('"' + m[1] + '"');
-      kandidater.push(decode(stripTags(tekst)));
-    } catch (_) {
-      kandidater.push(decode(stripTags(m[1])));
+  // Mønster A: FINN sin beskrivelsesseksjon (rendret DOM)
+  const domMønstre = [
+    /data-testid=["'](?:description|ad-description|object-description)["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+    /<section[^>]*class=["'][^"']*description[^"']*["'][^>]*>([\s\S]*?)<\/section>/gi,
+    /<div[^>]*class=["'][^"']*(?:import-decoration|u-word-break)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
+  ];
+  for (const re of domMønstre) {
+    for (const m of html.matchAll(re)) {
+      const ren = decode(stripTags(m[1]));
+      if (ren.length > 40) kandidater.push(ren);
     }
   }
 
-  // Mønster B: HTML-seksjon med data-testid for beskrivelse
-  const seksjon = html.match(/data-testid=["'](?:description|ad-description)["'][^>]*>([\s\S]*?)<\/(?:div|section)>/i);
-  if (seksjon) kandidater.push(decode(stripTags(seksjon[1])));
+  // Mønster B: JSON-felt (rå-HTML fallback)
+  const jsonFelt = [...html.matchAll(/"(?:description|adText|bodyHtml|generalText|body)"\s*:\s*"((?:[^"\\]|\\.){40,})"/gi)];
+  for (const m of jsonFelt) {
+    let tekst;
+    try { tekst = JSON.parse('"' + m[1] + '"'); } catch { tekst = m[1]; }
+    const ren = decode(stripTags(tekst));
+    if (ren.length > 40) kandidater.push(ren);
+  }
 
-  // Velg den lengste kandidaten (mest komplett beskrivelse)
-  kandidater.sort((a, b) => b.length - a.length);
-  const beste = kandidater[0];
+  // Velg lengste (mest komplett), men kun ekte tekst – ikke CSS/kode
+  const ekte = kandidater.filter((k) => !/[{};]\s*$/.test(k) && !/^\s*[.#]/.test(k) && !/:host|display:|width:/.test(k));
+  ekte.sort((a, b) => b.length - a.length);
+  const beste = ekte[0];
   return beste && beste.length > 40 ? beste : null;
 }
 
