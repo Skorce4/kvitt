@@ -837,7 +837,12 @@ function render(r){
       return head+'<p class="lead">Hentet direkte fra det offentlige kjøretøyregisteret. Bruk dette til å bekrefte at annonsen stemmer.</p>'+
         '<div class="simcard">'+
           rad('Merke',v.merke)+rad('Modell',v.modell)+rad('Farge',v.farge)+
-          rad('Drivstoff',v.drivstoff)+rad('Effekt (kW)',v.effektKw)+rad('Egenvekt (kg)',v.egenvekt)+
+          rad('Karosseri',v.karosseri)+rad('Dører',v.antallDorer)+
+          rad('Drivstoff',v.drivstoff)+rad('Girkasse',v.girkasse)+
+          rad('Effekt (kW)',v.effektKw)+rad('Toppfart (km/t)',v.maksHastighet)+
+          rad('Rekkevidde WLTP (km)',v.rekkeviddeKm)+rad('Egenvekt (kg)',v.egenvekt)+
+          rad('Hengervekt m/brems (kg)',v.tillattTilhengerBrems)+
+          rad('Førstegang reg. i Norge',v.forstegangRegistrertNorge)+
           rad('Sist EU-godkjent',v.sisteEuKontroll)+rad('Neste EU-frist',v.nesteEuKontroll)+
         '</div>'+
         '<p class="simnote">Offentlige data fra Statens vegvesen. Avvik mellom disse og annonsen bør du rette opp før publisering.</p>';
