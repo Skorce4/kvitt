@@ -371,6 +371,15 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 @keyframes slideInR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
 @keyframes slideInL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
 /* premium tekstboks: dokument med Kvittn-skilt-vannmerke + venstre fargekant */
+.delknapp{width:100%;margin:4px 0 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e6ecf3;font-family:'Inter';font-weight:600;font-size:14px;padding:12px;border-radius:10px;cursor:pointer;transition:.15s}
+.delknapp:hover{background:rgba(255,255,255,.1)}
+.tamed{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line2)}
+.tamed-t{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
+.tamedbtn{width:100%}
+.dash-kroner{margin:14px 0 4px;padding:12px 14px;background:rgba(255,255,255,.04);border-radius:8px;font-size:14px;color:#cdd6e3;line-height:1.5}
+.tekstlaster{display:flex;align-items:center;gap:12px;padding:32px 8px;color:var(--ink2);font-size:15px}
+.tspin{width:20px;height:20px;border:2.5px solid var(--line2);border-top-color:var(--green);border-radius:50%;animation:tspin .7s linear infinite;flex:0 0 auto}
+@keyframes tspin{to{transform:rotate(360deg)}}
 .simcard{position:relative;background:linear-gradient(180deg,#fff,#fcfbf8);border:1px solid var(--line);border-radius:12px;padding:20px 20px 16px;margin-top:4px}
 .simrow{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:10px 0;border-bottom:1px dashed var(--line2)}
 .simrow:last-of-type{border-bottom:none}
@@ -649,7 +658,7 @@ loadCounter();
   }catch(e){}
 })();
 
-const LM=["Henter FINN-annonsen...","Analyserer juridisk risiko...","Identifiserer manglende opplysninger...","Vurderer reklamasjonsrisiko...","Genererer anbefalinger..."];
+const LM=["Henter annonsen...","Analyserer reklamasjonsrisiko...","Vurderer trygghetsscore...","Nesten ferdig..."];
 let mt,pt;
 function setLoading(on,first){
   document.getElementById('loading').classList.toggle('on',on);
@@ -680,7 +689,18 @@ async function analyze(){
   setLoading(true,"Leser gjennom annonsen din...");
   try{const res=await fetch('/api/analyser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
     if(!res.ok){const e=await res.json().catch(()=>({}));const msg=e.error||('Serverfeil '+res.status);const err=new Error(msg);err.userMsg=(res.status===429);throw err;}
-    const r=await res.json();render(r);bumpCounter();loadCounter();
+    const r=await res.json();
+    // Vis diagnosen umiddelbart. Tekst-delen (forbehold/annonse/spørsmål) hentes
+    // i bakgrunnen og fylles inn når klar – brukeren ser scoren på halve tiden.
+    r.legal=null;r.improved=null;r.questions=null;r._laster=true;
+    render(r);bumpCounter();loadCounter();
+    // Bakgrunnskall for annonsetekst, med banned-listen så ingen selvmotsigelse
+    fetch('/api/analyser-tekst',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:r._text||text,banned:r.banned||[]})})
+      .then(async(tr)=>{const td=await tr.json().catch(()=>({}));
+        if(tr.ok){window.__analyse.legal=td.legal;window.__analyse.improved=td.improved;window.__analyse.questions=td.questions||[];window.__analyse._laster=false;oppdaterTekstSteg();}
+        else{window.__analyse._tekstFeil=true;window.__analyse._laster=false;oppdaterTekstSteg();}
+      })
+      .catch(()=>{window.__analyse._tekstFeil=true;window.__analyse._laster=false;oppdaterTekstSteg();});
   }catch(e){showInput();console.error(e);alert(e.userMsg?e.message:"Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.");}
 }
 
@@ -715,6 +735,9 @@ function render(r){
     return '<div class="dlamp '+f.level+'" style="animation-delay:'+(0.15+i*0.09)+'s"><span class="di">'+(lampIcons[f.level]||lampIcons.warn)+'</span><div class="db"><b>'+esc(f.title)+'</b><span>'+esc(f.detail)+'</span></div><span class="dcode">'+code+'</span></div>';
   }).join('');
 
+  const kroneLinje=(r.reklamasjon&&r.reklamasjon.eksponering_nok!=null)
+    ? '<div class="dash-kroner">Denne annonsen kan koste deg opptil <b style="color:'+col+'">'+Number(r.reklamasjon.eksponering_nok).toLocaleString('no-NO')+' kr</b> ved en reklamasjon.</div>'
+    : '';
   steps.push({label:'Diagnose',html:
     '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">📊</span>Kvittn diagnose</div>'+
     '<div class="dashboard">'+
@@ -727,7 +750,9 @@ function render(r){
           '<div class="dash-bars" id="dashBars"></div>'+
         '</div>'+
       '</div>'+
+      kroneLinje+
       '<div class="dash-blurb">'+esc(r.blurb)+'</div>'+
+      '<button type="button" class="delknapp" onclick="delScore()">📲 Del scoren min</button>'+
       '<div class="dash-lamps-t">Varsellamper · funn i annonsen</div>'+
       lamps+
     '</div>'});
@@ -747,25 +772,39 @@ function render(r){
       '</div>'+
       '<p class="simnote">Veiledende anslag, ikke juridisk rådgivning. Reelt utfall avhenger av dokumentasjon og forhandling.</p>'});
   }
-  steps.push({label:'Forbehold',html:
-    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
+  const laster=r._laster;
+  const spinner='<div class="tekstlaster"><span class="tspin"></span><span>Skriver forbedret tekst...</span></div>';
+
+  steps.push({label:'Forbehold',render:()=>{
+    const a=window.__analyse;
+    return '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">🛡️</span>Forbehold</div>'+
     '<h3>Forbehold du bør ha med</h3><p class="lead">Lim dette nederst i annonsen for å stå tryggere ved «solgt som den er».</p>'+
-    docBox('legalText','Forbeholdstekst',r.legal)+'<button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button>'});
-  steps.push({label:'Bedre annonse',html:
-    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">✨</span>Bedre annonse</div>'+
+    (a._laster?spinner:(a._tekstFeil?'<p class="lead">Kunne ikke lage forbehold. Prøv en ny sjekk.</p>':
+      docBox('legalText','Forbeholdstekst',a.legal)+'<button class="btn copybtn" onclick="copyText(\'legalText\',this)">Kopier forbehold</button>'));
+  }});
+  steps.push({label:'Bedre annonse',render:()=>{
+    const a=window.__analyse;
+    return '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.greenBg+'">✨</span>Bedre annonse</div>'+
     '<h3>Forbedret annonsetekst</h3><p class="lead">Samme bil, skrevet for å selge bedre og opplyse riktig. Klar til FINN.</p>'+
-    docBox('improvedText','Klar for FINN',r.improved)+'<button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'+
-    '<div class="mailwrap">'+
-      '<button type="button" class="mailtoggle" id="mailToggle" onclick="toggleMail()">✉️ Få hele analysen på e-post</button>'+
-      '<div class="mailbox" id="mailBox">'+
-        '<p class="maillead">Vi sender annonsetekst, forbehold og risikovurdering til deg.</p>'+
-        '<div class="mailrow"><input type="email" id="epost" placeholder="din@epost.no" autocomplete="email"><button type="button" class="btn mailsend" id="mailSend" onclick="sendMail()">Send</button></div>'+
-        '<p class="mailstatus" id="mailStatus"></p>'+
-      '</div>'+
-    '</div>'});
-  if(qs)steps.push({label:'Spørsmål',html:
-    '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
-    '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+qs});
+    (a._laster?spinner:(a._tekstFeil?'<p class="lead">Kunne ikke lage annonsetekst. Prøv en ny sjekk.</p>':
+      docBox('improvedText','Klar for FINN',a.improved)+'<button class="btn copybtn" onclick="copyText(\'improvedText\',this)">Kopier annonsetekst</button>'+
+      '<div class="mailwrap">'+
+        '<button type="button" class="mailtoggle" id="mailToggle" onclick="toggleMail()">✉️ Få hele analysen på e-post</button>'+
+        '<div class="mailbox" id="mailBox">'+
+          '<p class="maillead">Vi sender annonsetekst, forbehold og risikovurdering til deg.</p>'+
+          '<div class="mailrow"><input type="email" id="epost" placeholder="din@epost.no" autocomplete="email"><button type="button" class="btn mailsend" id="mailSend" onclick="sendMail()">Send</button></div>'+
+          '<p class="mailstatus" id="mailStatus"></p>'+
+        '</div>'+
+      '</div>'));
+  }});
+  steps.push({label:'Spørsmål',render:()=>{
+    const a=window.__analyse;
+    const qs=(a.questions||[]).map((q,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
+    return '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
+    '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+
+    (a._laster?spinner:(a._tekstFeil?'<p class="lead">Kunne ikke lage spørsmål. Prøv en ny sjekk.</p>':
+      qs+'<div class="tamed"><div class="tamed-t">Ta med deg analysen</div><button type="button" class="btn tamedbtn" onclick="kopierAlt(this)">📋 Kopier hele analysen</button></div>'));
+  }});
 
   WIZ.steps=steps;
 
@@ -800,7 +839,8 @@ function toggleMer(id){
 function drawStep(dir){
   const s=WIZ.steps[WIZ.i];
   const cls=dir===1?'wstep in-right':dir===-1?'wstep in-left':'wstep';
-  document.getElementById('wizBody').innerHTML='<div class="'+cls+'">'+s.html+'</div>';
+  const innhold=s.render?s.render():s.html;
+  document.getElementById('wizBody').innerHTML='<div class="'+cls+'">'+innhold+'</div>';
   document.getElementById('wizDots').innerHTML=WIZ.steps.map((x,i)=>'<span class="wizard-dot '+(i===WIZ.i?'on':(i<WIZ.i?'done':''))+'"></span>').join('');
   const last=WIZ.i===WIZ.steps.length-1;
   let nav='';
@@ -809,7 +849,6 @@ function drawStep(dir){
   document.getElementById('wizNav').innerHTML=nav;
   if(WIZ.i===0){
     const score=WIZ.score, col=WIZ.col;
-    // build 20 bars
     const bw=document.getElementById('dashBars');
     if(bw){bw.innerHTML='';for(let i=0;i<20;i++)bw.appendChild(document.createElement('i'));}
     setTimeout(()=>{
@@ -821,6 +860,13 @@ function drawStep(dir){
       if(score>80)setTimeout(confetti,500);
     },300);
   }
+}
+// Kalles når bakgrunns-tekstkallet er ferdig. Tegner steget på nytt kun hvis
+// brukeren står på et tekst-steg (indeks >= antall diagnose-steg).
+function oppdaterTekstSteg(){
+  if(!WIZ.steps.length)return;
+  const s=WIZ.steps[WIZ.i];
+  if(s&&s.render)drawStep(); // bare dynamiske steg trenger re-render
 }
 function wizGo(d){const prev=WIZ.i;WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));if(WIZ.i===prev)return;drawStep(d);}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
@@ -845,6 +891,36 @@ function sendMail(){
       else{status.textContent=d.grunn==='Mail ikke konfigurert'?'E-post er ikke aktivert ennå.':'Kunne ikke sende akkurat nå.';status.className='mailstatus err';btn.disabled=false;btn.textContent='Send';}
     })
     .catch(()=>{status.textContent='Kunne ikke sende akkurat nå.';status.className='mailstatus err';btn.disabled=false;btn.textContent='Send';});
+}
+function delScore(){
+  const a=window.__analyse||{};
+  const score=a.score!=null?a.score:'';
+  const tekst='Min bilannonse fikk '+score+'/100 i trygghet på kvittn.no – sjekk din gratis før du selger.';
+  const url='https://kvittn.no';
+  if(navigator.share){
+    navigator.share({title:'Kvittn trygghetsscore',text:tekst,url}).catch(()=>{});
+  }else{
+    navigator.clipboard.writeText(tekst+' '+url).then(()=>{
+      alert('Kopiert! Lim inn hvor du vil dele.');
+    }).catch(()=>{});
+  }
+}
+function kopierAlt(btn){
+  const a=window.__analyse||{};
+  const linjer=[];
+  linjer.push('KVITTN TRYGGHETSANALYSE');
+  linjer.push('Score: '+(a.score!=null?a.score:'-')+'/100 ('+(a.label||'')+')');
+  if(a.blurb)linjer.push('\n'+a.blurb);
+  if(a.reklamasjon){linjer.push('\nReklamasjonsrisiko: '+(a.reklamasjon.utfall||'')+(a.reklamasjon.eksponering_nok!=null?' – opptil '+Number(a.reklamasjon.eksponering_nok).toLocaleString('no-NO')+' kr':''));if(a.reklamasjon.begrunnelse)linjer.push(a.reklamasjon.begrunnelse);}
+  if(a.flags&&a.flags.length){linjer.push('\nFUNN I ANNONSEN:');a.flags.forEach(f=>linjer.push('• '+f.title+': '+f.detail));}
+  if(a.legal){linjer.push('\nFORBEHOLDSTEKST:\n'+a.legal);}
+  if(a.improved){linjer.push('\nFORBEDRET ANNONSETEKST:\n'+a.improved);}
+  if(a.questions&&a.questions.length){linjer.push('\nSPØRSMÅL KJØPER KAN STILLE:');a.questions.forEach(q=>linjer.push('• '+q.q));}
+  linjer.push('\nLaget med kvittn.no');
+  navigator.clipboard.writeText(linjer.join('\n')).then(()=>{
+    const o=btn.textContent;btn.textContent='Kopiert ✓';btn.classList.add('done');
+    setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);
+  }).catch(()=>{});
 }
 function copyText(id,btn){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{const o=btn.textContent;btn.textContent="Kopiert ✓";btn.classList.add('done');setTimeout(()=>{btn.textContent=o;btn.classList.remove('done');},1900);});}
 function resetTool(){
