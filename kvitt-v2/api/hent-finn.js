@@ -6,6 +6,10 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Bruk POST." });
 
+  // Diagnostikk: sett { url, debug: true } for å få detaljert info om hvert steg
+  const debug = req.body && req.body.debug === true;
+  const diag = { steg: [], zyteKeyFinnes: false, htmlLengde: 0, brukteMetode: null };
+
   try {
     const { url } = req.body || {};
     if (!url || !/finn\.no/i.test(url)) {
@@ -14,18 +18,22 @@ export default async function handler(req, res) {
 
     let html = null;
     const zyteKey = process.env.ZYTE_API_KEY;
+    diag.zyteKeyFinnes = !!zyteKey;
 
     if (zyteKey) {
-      // Hent via Zyte for å komme forbi Cloudflare.
-      // Prøv billig httpResponseBody først; hvis FINN-innholdet ikke er der
-      // (JS-rendret), fall tilbake til browserHtml (dyrere, men robust).
+      diag.steg.push("Zyte-nøkkel funnet, prøver httpResponseBody");
       html = await hentViaZyte(url, zyteKey, false);
+      diag.steg.push("httpResponseBody ga " + (html ? html.length + " tegn" : "null"));
       if (!html || !harInnhold(html)) {
+        diag.steg.push("Ikke nok innhold, eskalerer til browserHtml");
         html = await hentViaZyte(url, zyteKey, true);
+        diag.steg.push("browserHtml ga " + (html ? html.length + " tegn" : "null"));
+        diag.brukteMetode = "browserHtml";
+      } else {
+        diag.brukteMetode = "httpResponseBody";
       }
     } else {
-      // Ingen Zyte-nøkkel satt – prøv direkte (funker sjelden pga Cloudflare,
-      // men lar oss teste lokalt). Frontend har tekstfelt som fallback uansett.
+      diag.steg.push("INGEN Zyte-nøkkel – prøver direkte (blir blokkert av Cloudflare)");
       for (let attempt = 0; attempt < 2 && !html; attempt++) {
         try {
           const r = await fetch(url, { headers: browserHeaders(url) });
@@ -33,22 +41,48 @@ export default async function handler(req, res) {
         } catch (_) {}
         await new Promise((res2) => setTimeout(res2, 400));
       }
+      diag.brukteMetode = "direkte";
     }
 
+    diag.htmlLengde = html ? html.length : 0;
+    diag.zyteStatus = SISTE_ZYTE.status;
+    diag.zyteFeil = SISTE_ZYTE.feil;
+
     if (!html) {
+      if (debug) return res.status(200).json({ debug: diag });
       return res.status(502).json({ error: "Klarte ikke å hente annonsen fra FINN." });
     }
 
+    // Diagnostikk: hva finnes i HTML-en?
+    diag.harNextData = html.includes("__NEXT_DATA__");
+    diag.harJsonLd = html.includes("application/ld+json");
+    diag.harOgTitle = html.includes("og:title");
+    diag.harCloudflare = /just a moment|cf-browser-verification|challenge-platform/i.test(html);
+
     const text = extractFromFinn(html);
+    diag.uttrukketLengde = text ? text.length : 0;
+    diag.uttrukketStart = text ? text.slice(0, 200) : null;
+
+    if (debug) {
+      return res.status(200).json({ debug: diag, tekst: text });
+    }
+
     if (!text || text.length < 40) {
       return res.status(422).json({ error: "Fant ikke annonseteksten." });
     }
     return res.status(200).json({ text });
   } catch (e) {
     console.error("FINN-henting feilet:", e);
+    if (debug) {
+      diag.steg.push("EXCEPTION: " + String(e && e.message || e));
+      return res.status(200).json({ debug: diag });
+    }
     return res.status(500).json({ error: "Noe gikk galt under henting." });
   }
 }
+
+// Global for siste Zyte-respons, kun for diagnostikk
+let SISTE_ZYTE = { status: null, feil: null };
 
 // Henter en URL via Zyte API. browser=false gir billig httpResponseBody,
 // browser=true gir browserHtml (JS-rendret, dyrere, kommer forbi mer).
@@ -67,7 +101,11 @@ async function hentViaZyte(url, zyteKey, browser) {
       },
       body: JSON.stringify(body),
     });
-    if (!r.ok) return null;
+    SISTE_ZYTE.status = r.status;
+    if (!r.ok) {
+      SISTE_ZYTE.feil = (await r.text()).slice(0, 300);
+      return null;
+    }
     const data = await r.json();
     if (browser) return data.browserHtml || null;
     // httpResponseBody kommer base64-kodet
@@ -75,7 +113,8 @@ async function hentViaZyte(url, zyteKey, browser) {
       return Buffer.from(data.httpResponseBody, "base64").toString("utf-8");
     }
     return null;
-  } catch (_) {
+  } catch (e) {
+    SISTE_ZYTE.feil = String(e && e.message || e);
     return null;
   }
 }
