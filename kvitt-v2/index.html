@@ -371,6 +371,14 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 @keyframes slideInR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
 @keyframes slideInL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
 /* premium tekstboks: dokument med Kvittn-skilt-vannmerke + venstre fargekant */
+.foeretter{margin-top:20px;padding:20px;background:linear-gradient(180deg,#f7faf7,#fcfbf8);border:1px solid var(--line);border-radius:12px;text-align:center}
+.fe-t{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);margin-bottom:14px}
+.fe-row{display:flex;align-items:center;justify-content:center;gap:20px}
+.fe-box{display:flex;flex-direction:column;align-items:center;gap:2px}
+.fe-num{font-family:'Space Grotesk';font-weight:700;font-size:44px;line-height:1}
+.fe-lab{font-size:12px;color:var(--ink3)}
+.fe-arrow{font-size:28px;color:var(--green);font-weight:700}
+.fe-note{margin:14px 0 0;font-size:13px;color:var(--ink2);line-height:1.5}
 .delknapp{width:100%;margin:4px 0 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e6ecf3;font-family:'Inter';font-weight:600;font-size:14px;padding:12px;border-radius:10px;cursor:pointer;transition:.15s}
 .delknapp:hover{background:rgba(255,255,255,.1)}
 .tamed{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line2)}
@@ -697,7 +705,7 @@ async function analyze(){
     // Bakgrunnskall for annonsetekst, med banned-listen så ingen selvmotsigelse
     fetch('/api/analyser-tekst',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:r._text||text,banned:r.banned||[]})})
       .then(async(tr)=>{const td=await tr.json().catch(()=>({}));
-        if(tr.ok){window.__analyse.legal=td.legal;window.__analyse.improved=td.improved;window.__analyse.questions=td.questions||[];window.__analyse._laster=false;oppdaterTekstSteg();}
+        if(tr.ok){window.__analyse.legal=td.legal;window.__analyse.improved=td.improved;window.__analyse.questions=td.questions||[];window.__analyse.nyScore=td.nyScore;window.__analyse._laster=false;oppdaterTekstSteg();}
         else{window.__analyse._tekstFeil=true;window.__analyse._laster=false;oppdaterTekstSteg();}
       })
       .catch(()=>{window.__analyse._tekstFeil=true;window.__analyse._laster=false;oppdaterTekstSteg();});
@@ -800,10 +808,20 @@ function render(r){
   steps.push({label:'Spørsmål',render:()=>{
     const a=window.__analyse;
     const qs=(a.questions||[]).map((q,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
+    const foerEtter=(a.nyScore!=null&&a.score!=null)?
+      '<div class="foeretter">'+
+        '<div class="fe-t">Med forbedringene dine</div>'+
+        '<div class="fe-row">'+
+          '<div class="fe-box"><span class="fe-num" style="color:'+colorFor(a.score)+'">'+a.score+'</span><span class="fe-lab">Nå</span></div>'+
+          '<span class="fe-arrow">→</span>'+
+          '<div class="fe-box"><span class="fe-num" style="color:'+colorFor(a.nyScore)+'">'+a.nyScore+'</span><span class="fe-lab">Etter</span></div>'+
+        '</div>'+
+        '<p class="fe-note">Bruk den forbedrede teksten og forbeholdet, så løfter du deg fra '+a.score+' til rundt '+a.nyScore+' av 100.</p>'+
+      '</div>':'';
     return '<div class="step-eyebrow lbl"><span class="ic" style="background:'+C.amberBg+'">❓</span>Spørsmål fra kjøper</div>'+
     '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+
     (a._laster?spinner:(a._tekstFeil?'<p class="lead">Kunne ikke lage spørsmål. Prøv en ny sjekk.</p>':
-      qs+'<div class="tamed"><div class="tamed-t">Ta med deg analysen</div><button type="button" class="btn tamedbtn" onclick="kopierAlt(this)">📋 Kopier hele analysen</button></div>'));
+      qs+foerEtter+'<div class="tamed"><div class="tamed-t">Ta med deg analysen</div><button type="button" class="btn tamedbtn" onclick="kopierAlt(this)">📋 Kopier hele analysen</button></div>'));
   }});
 
   WIZ.steps=steps;
