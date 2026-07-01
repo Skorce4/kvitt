@@ -34,15 +34,6 @@ export default async function handler(req, res) {
     }
 
     const text = extractFromFinn(html);
-
-    // Midlertidig diagnostikk: vis HTML rundt km/kilometer + faktaboks-struktur
-    if (req.body && req.body.debugFakta === true) {
-      const kmIndex = html.search(/kilometer|\bkm\b/i);
-      const rundtKm = kmIndex > -1 ? html.slice(Math.max(0, kmIndex - 400), kmIndex + 400) : "km ikke funnet i HTML";
-      const dtdd = [...html.matchAll(/<dt[^>]*>([\s\S]*?)<\/dt>/gi)].slice(0, 8).map((m) => m[1].replace(/<[^>]+>/g, "").trim());
-      return res.status(200).json({ rundtKm, dtFunnet: dtdd, uttrukket: text });
-    }
-
     if (!text || text.length < 40) {
       return res.status(422).json({ error: "Fant ikke annonseteksten." });
     }
