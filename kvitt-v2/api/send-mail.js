@@ -1,10 +1,10 @@
 // api/send-mail.js
 // Sender den ferdige analysen til brukerens e-post via Resend.
-// Kalles av frontend ETTER at analysen er vist. Feiler stille – e-post er
-// en bonus, ikke kjernen, så en mail-feil skal aldri påvirke brukeropplevelsen.
+// Kalles av frontend når bruker trykker "Send" i e-postboksen ETTER analysen.
+// Feiler stille hvis Resend ikke er satt opp – da svarer den pent uten å kræsje.
 //
-// Krever miljøvariabelen RESEND_API_KEY. Har du ikke satt den opp ennå,
-// returnerer funksjonen bare en nøytral melding uten å kræsje.
+// Krever miljøvariabelen RESEND_API_KEY + verifisert kvittn.no-domene i Resend.
+// Har du ikke satt det opp ennå, får brukeren beskjed om at e-post ikke er aktivert.
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
-    // Ikke satt opp ennå – svar pent så frontend ikke får feil
+    // Ikke satt opp ennå – svar pent så frontend viser riktig melding
     return res.status(200).json({ ok: false, grunn: "Mail ikke konfigurert" });
   }
 
