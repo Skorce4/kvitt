@@ -39,6 +39,12 @@ export default async function handler(req, res) {
     }
 
     const data = await r.json();
+
+    // Debug: returner rå respons for å finne riktige feltstier
+    if (req.body && req.body.debug === true) {
+      return res.status(200).json({ ok: true, raw: data });
+    }
+
     const kort = trekkUtNyttig(data);
     return res.status(200).json({ ok: true, data: kort });
   } catch (e) {
