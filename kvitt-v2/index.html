@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kvittn — bli kvittn, trygt</title>
-<meta name="description" content="Lim inn FINN-annonsen din, så sjekker Kvittn hvor godt den beskytter deg mot reklamasjon. Gratis på 15 sekunder.">
+<title>Kvitt’n — bli kvittn, trygt</title>
+<meta name="description" content="Lim inn FINN-annonsen din, så sjekker Kvitt’n hvor godt den beskytter deg mot reklamasjon. Gratis på 15 sekunder.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23101d33'/%3E%3Ctext x='20' y='27' text-anchor='middle' font-family='Arial' font-weight='800' font-size='15' fill='white'%3EK%3C/text%3E%3Ccircle cx='12' cy='11' r='5' fill='%232f9e5f'/%3E%3C/svg%3E">
@@ -315,6 +315,7 @@ details p{padding:0 20px 17px;color:var(--ink2);font-size:14px;line-height:1.7}
 .disc{font-size:12px;color:var(--ink3);background:var(--paper2);border-radius:var(--r);padding:14px 16px;margin-top:18px;line-height:1.6}
 footer{margin-top:46px;background:var(--navy);color:rgba(255,255,255,.6)}
 footer .row{max-width:1120px;margin:0 auto;padding:34px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px;font-size:13px}
+footer .footer-legal{padding:0 24px 28px;justify-content:center;border-top:1px solid rgba(255,255,255,.08);padding-top:20px;font-size:12px;color:rgba(255,255,255,.4);letter-spacing:.02em}
 
 .sr{opacity:0;transform:translateY(24px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
 .sr.in{opacity:1;transform:none}
@@ -522,7 +523,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .wstep.in-left{animation:slideInL .42s var(--ease)}
 @keyframes slideInR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
 @keyframes slideInL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
-/* premium tekstboks: dokument med Kvittn-skilt-vannmerke + venstre fargekant */
+/* premium tekstboks: dokument med Kvitt’n-skilt-vannmerke + venstre fargekant */
 .foeretter{margin-top:20px;padding:24px;background:linear-gradient(180deg,#f7faf7,#fcfbf8);border:1px solid rgba(228,223,212,.6);border-radius:var(--r-lg);box-shadow:var(--sh);text-align:center}
 .fe-t{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);margin-bottom:14px}
 .fe-row{display:flex;align-items:center;justify-content:center;gap:20px}
@@ -635,7 +636,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 <nav><div class="row">
   <a href="#top" class="home" id="navLogo" onclick="goHome(event)"></a>
   <div class="nav-right">
-    <a href="#/sjekker" class="nav-link lbl" onclick="goPage('sjekker',event)">Hva Kvittn sjekker</a>
+    <a href="#/sjekker" class="nav-link lbl" onclick="goPage('sjekker',event)">Hva Kvitt’n sjekker</a>
     <a href="#/reklamasjon" class="nav-link lbl" onclick="goPage('reklamasjon',event)">Om reklamasjonsrisiko</a>
     <span class="nav-tag lbl">Gratis verktøy</span>
   </div>
@@ -649,7 +650,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <div class="wrap">
     <span class="hero-eyebrow lbl">For deg som vurderer å selge bilen privat</span>
     <h1><span class="ordbytt" id="ordbytt">Slipp</span> at kjøperen<br>kommer <span class="hl">tilbake</span></h1>
-    <p class="sub">Lim inn annonsen din, så sjekker Kvittn hvor godt den beskytter deg mot reklamasjon — og gir deg teksten som tetter hullene. Bli kvittn, trygt.</p>
+    <p class="sub">Lim inn annonsen din, så sjekker Kvitt’n hvor godt den beskytter deg mot reklamasjon — og gir deg teksten som tetter hullene. Bli kvittn, trygt.</p>
   </div>
 </header>
 
@@ -694,7 +695,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <canvas class="why-cv" id="whyCv"></canvas>
   <div class="why-grid"></div>
   <div class="why-inner">
-    <span class="why-eyebrow">Hvorfor Kvittn</span>
+    <span class="why-eyebrow">Hvorfor Kvitt’n</span>
 
     <div class="why-block">
       <div class="why-num">01 — Problemet</div>
@@ -714,8 +715,8 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 
     <div class="why-block">
       <div class="why-num">03 — Løsningen</div>
-      <h2 class="why-h">Kvittn leser annonsen<br>som en <span class="g">motpart.</span></h2>
-      <p class="why-p">Lim inn FINN-annonsen din. Kvittn finner hullene som kan gi reklamasjon, henter offisielle data fra Statens vegvesen, flagger kjente svakheter ved modellen — og gir deg en tekst som tetter hullene før du publiserer.</p>
+      <h2 class="why-h">Kvitt’n leser annonsen<br>som en <span class="g">motpart.</span></h2>
+      <p class="why-p">Lim inn FINN-annonsen din. Kvitt’n finner hullene som kan gi reklamasjon, henter offisielle data fra Statens vegvesen, flagger kjente svakheter ved modellen — og gir deg en tekst som tetter hullene før du publiserer.</p>
       <div class="why-steps">
         <div class="why-step"><span class="sn">01</span><span class="st">Lim inn FINN-lenken din</span></div>
         <div class="why-step"><span class="sn">02</span><span class="st">Få en trygghetsscore og konkrete funn</span></div>
@@ -736,7 +737,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <div class="learn-links">
     <a class="learn-link" href="#/sjekker" onclick="goPage('sjekker',event)">
       <div class="ll-ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div>
-      <div class="ll-txt"><b>Hva Kvittn sjekker</b><span>De fire tingene analysen ser etter</span></div>
+      <div class="ll-txt"><b>Hva Kvitt’n sjekker</b><span>De fire tingene analysen ser etter</span></div>
       <svg class="ll-arr" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#46546b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
     <a class="learn-link" href="#/reklamasjon" onclick="goPage('reklamasjon',event)">
@@ -757,29 +758,29 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 <section class="section landing home-only"><div class="wrap">
   <div class="head"><span class="sec-label lbl">Spørsmål</span><h2>Ofte stilte spørsmål</h2></div>
   <div class="faq">
-    <details><summary>Er Kvittn gratis?</summary><p>Ja. Lim inn annonsen din, så får du analysen. Ingen innlogging, ingenting å betale.</p></details>
+    <details><summary>Er Kvitt’n gratis?</summary><p>Ja. Lim inn annonsen din, så får du analysen. Ingen innlogging, ingenting å betale.</p></details>
     <details><summary>Hva betyr trygghetsscoren?</summary><p>Den sier hvor godt annonsen din beskytter deg mot at kjøperen kommer tilbake og krever penger etter salget. Høyere score betyr færre åpne hull.</p></details>
-    <details><summary>Fjerner dette reklamasjonsansvaret mitt?</summary><p>Nei. Ved privatsalg har du opplysningsplikt og et visst ansvar i to år, og «solgt som den er» fritar deg ikke helt. Kvittn hjelper deg å opplyse riktig og ta gode forbehold.</p></details>
+    <details><summary>Fjerner dette reklamasjonsansvaret mitt?</summary><p>Nei. Ved privatsalg har du opplysningsplikt og et visst ansvar i to år, og «solgt som den er» fritar deg ikke helt. Kvitt’n hjelper deg å opplyse riktig og ta gode forbehold.</p></details>
     <details><summary>Hva om jeg heller vil slippe hele ansvaret?</summary><p>Da kan du selge til en profesjonell aktør, som overtar reklamasjonsansvaret. Du får som regel litt mindre betalt, men slipper risiko og bryderi.</p></details>
   </div>
-  <div class="disc">Kvittn gir generell informasjon, ikke juridisk rådgivning. Ved privatsalg gjelder kjøpsloven (ikke forbrukerkjøpsloven). Du har opplysningsplikt om kjente feil, og «solgt som den er» fritar deg ikke for ansvar hvis du har holdt tilbake informasjon. Ved tvil, kontakt en jurist.</div>
+  <div class="disc">Kvitt’n gir generell informasjon, ikke juridisk rådgivning. Ved privatsalg gjelder kjøpsloven (ikke forbrukerkjøpsloven). Du har opplysningsplikt om kjente feil, og «solgt som den er» fritar deg ikke for ansvar hvis du har holdt tilbake informasjon. Ved tvil, kontakt en jurist.</div>
 </div></section>
 
-<!-- ===== UNDERSIDE: Hva Kvittn sjekker ===== -->
+<!-- ===== UNDERSIDE: Hva Kvitt’n sjekker ===== -->
 <div class="subpage" id="page-sjekker">
   <div class="subpage-hero">
     <div class="wrap">
       <span class="backlink" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tilbake</span>
       <div class="sp-eyebrow lbl">Analysen</div>
-      <h1>Hva Kvittn faktisk ser etter</h1>
-      <p class="sp-sub">Kvittn leser annonsen som en kjøper med advokat ved siden av seg — og finner det du burde ha sagt før noen andre gjør det.</p>
+      <h1>Hva Kvitt’n faktisk ser etter</h1>
+      <p class="sp-sub">Kvitt’n leser annonsen som en kjøper med advokat ved siden av seg — og finner det du burde ha sagt før noen andre gjør det.</p>
     </div>
   </div>
   <div class="subpage-body"><div class="wrap">
     <div class="scan-grid">
-      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.1" fill="#2f9e5f"/></svg></div><div><h4>Risiko-formuleringer</h4><p>«Som ny», «feilfri» eller «alt fungerer» kan tolkes som garanti du gir kjøperen. Kvittn fanger dem og foreslår tryggere ordlyd som sier det samme uten å binde deg.</p><span class="ex bad">«som ny» → flagget</span></div></div>
-      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h4>Manglende forbehold</h4><p>«Selges som den er» er ikke nok alene etter dagens regler. Kvittn skriver et forbehold som faktisk holder, tilpasset bilen og annonsen din.</p><span class="ex bad">mangler forbehold</span></div></div>
-      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div><div><h4>Det du glemte å nevne</h4><p>Kjente feil du ikke har opplyst om er den vanligste grunnen til at kjøpere kommer tilbake. Kvittn spør om akkurat det kjøperen kommer til å spørre om.</p><span class="ex">opplysningsplikt</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="10" x2="12" y2="14" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.1" fill="#2f9e5f"/></svg></div><div><h4>Risiko-formuleringer</h4><p>«Som ny», «feilfri» eller «alt fungerer» kan tolkes som garanti du gir kjøperen. Kvitt’n fanger dem og foreslår tryggere ordlyd som sier det samme uten å binde deg.</p><span class="ex bad">«som ny» → flagget</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h4>Manglende forbehold</h4><p>«Selges som den er» er ikke nok alene etter dagens regler. Kvitt’n skriver et forbehold som faktisk holder, tilpasset bilen og annonsen din.</p><span class="ex bad">mangler forbehold</span></div></div>
+      <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2f9e5f" stroke-width="2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round"/></svg></div><div><h4>Det du glemte å nevne</h4><p>Kjente feil du ikke har opplyst om er den vanligste grunnen til at kjøpere kommer tilbake. Kvitt’n spør om akkurat det kjøperen kommer til å spørre om.</p><span class="ex">opplysningsplikt</span></div></div>
       <div class="scheck"><div class="si"><svg viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.5 7.2L4 21l1.8-5.5A8 8 0 1121 12z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/></svg></div><div><h4>Spørsmål kjøperen vil stille</h4><p>Du får en liste over det kjøpere typisk graver i — så du kan svare ærlig i annonsen og slippe diskusjonen på visning.</p><span class="ex">5 spørsmål</span></div></div>
     </div>
   </div></div>
@@ -794,7 +795,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
       <span class="backlink" onclick="goPage('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tilbake</span>
       <div class="sp-eyebrow lbl">Hvorfor det gjelder deg</div>
       <h1>Salget er ikke over når pengene er på konto</h1>
-      <p class="sp-sub">Selger du bil privat, kan kjøperen komme tilbake i opptil to år. Slik kan en helt vanlig handel bli et krav — og her er hvor Kvittn stopper det.</p>
+      <p class="sp-sub">Selger du bil privat, kan kjøperen komme tilbake i opptil to år. Slik kan en helt vanlig handel bli et krav — og her er hvor Kvitt’n stopper det.</p>
     </div>
   </div>
   <div class="subpage-body"><div class="wrap">
@@ -814,14 +815,14 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
         </div>
         <div class="rek-step safe">
           <div class="rk-num"><b>3</b>Beskyttelsen</div>
-          <h4>Kvittn ga deg dekning</h4>
+          <h4>Kvitt’n ga deg dekning</h4>
           <p>Med riktig forbehold og en ærlig, presis annonse står du støtt. Du opplyste, du tok forbehold — og det er dokumentert.</p>
           <div class="rk-law">Forbehold · skriftlig</div>
         </div>
       </div>
       <div class="rek-foot">
         <div class="rk-shield"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3z" stroke="#2f9e5f" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#2f9e5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <p><b>Kvittn er ikke en garanti — det er en brannmur.</b> Du kan ikke fjerne all risiko ved privatsalg, men du kan fjerne den unødvendige. Det er den Kvittn tar.</p>
+        <p><b>Kvitt’n er ikke en garanti — det er en brannmur.</b> Du kan ikke fjerne all risiko ved privatsalg, men du kan fjerne den unødvendige. Det er den Kvitt’n tar.</p>
       </div>
     </div>
   </div></div>
@@ -832,7 +833,11 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 <footer class="landing"><div class="row">
   <svg height="34" viewBox="0 0 200 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="10" width="196" height="44" rx="10" fill="#101a2c"/><rect x="5" y="13" width="190" height="38" rx="7.5" fill="#fff"/><path d="M5 20.5C5 16.36 8.36 13 12.5 13H44V51H12.5C8.36 51 5 47.64 5 43.5V20.5Z" fill="#0a3aa0"/><g transform="translate(15.5 19)"><rect width="18" height="13" rx="1" fill="#ba0c2f"/><rect x="5" width="3.4" height="13" fill="#fff"/><rect y="5" width="18" height="3.4" fill="#fff"/><rect x="5.8" width="1.8" height="13" fill="#00205b"/><rect y="5.8" width="18" height="1.8" fill="#00205b"/></g><text x="24.5" y="46" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="9.5" fill="#fff">N</text><text x="120" y="39" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="22" letter-spacing="1.5" fill="#101a2c">KVITTN</text><circle cx="188" cy="14" r="10" fill="#37c46f" stroke="#0f1d33" stroke-width="2"/><path d="M183.5 14l3 3 6-6.4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <span class="lbl">Sjekk annonsen før du selger · Analysen lagres ikke</span>
+</div>
+<div class="row footer-legal">
+  <span>© 2026 Arian Nicolai Malmo Jakobsen. Alle rettigheter reservert.</span>
 </div></footer>
+
 
 <script>
 const GREEN="#2f9e5f",AMBER="#c7841b",RED="#cf3d33";
@@ -874,8 +879,8 @@ lineField(document.getElementById('heroCv'),'#37c46f',{count:26,alBoost:1.6});
 (function(){
   const el=document.getElementById('ordbytt');if(!el)return;
   if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
-  // Synonymer som alle passer naturlig i "___ at kjøperen kommer tilbake"
-  const synonymer=['Slipp','Unngå','Slipp'];
+  // Veksler mykt mellom "Slipp" og "Unngå" – begge passer i setningen.
+  const synonymer=['Slipp','Unngå'];
   let i=0;
   setInterval(()=>{
     el.classList.add('ut');            // start fade ut (700ms)
@@ -1471,7 +1476,7 @@ function delScore(){
   const tekst='Min bilannonse fikk '+score+'/100 i trygghet på kvittn.no – sjekk din gratis før du selger.';
   const url='https://kvittn.no';
   if(navigator.share){
-    navigator.share({title:'Kvittn trygghetsscore',text:tekst,url}).catch(()=>{});
+    navigator.share({title:'Kvitt’n trygghetsscore',text:tekst,url}).catch(()=>{});
   }else{
     navigator.clipboard.writeText(tekst+' '+url).then(()=>{
       alert('Kopiert! Lim inn hvor du vil dele.');
