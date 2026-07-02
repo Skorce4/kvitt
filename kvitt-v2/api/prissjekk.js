@@ -186,7 +186,7 @@ function analyserPriser(annonser, egenPris, egenKm) {
   const vrakord = /\b(deler|delebil|skade|skadet|reparasjon|motorfeil|motorhavari|kondemn|defekt|start(er)? ikke|til reparasjon|prosjekt|havarist)\b/i;
   let rene = unike.filter((a) => !vrakord.test(a.tittel || ""));
 
-  // 2) Fjern statistiske uteliggere (urealistisk lave = sannsynlig vrak/feil)
+  // 2) Fjern statistiske uteliggere (urealistisk lave = vrak/feil/feil variant)
   const priser = rene.map((a) => a.pris).sort((x, y) => x - y);
   if (priser.length >= 4) {
     const q1 = persentil(priser, 25);
@@ -194,6 +194,15 @@ function analyserPriser(annonser, egenPris, egenKm) {
     const iqr = q3 - q1;
     const nedreGrense = q1 - 1.5 * iqr;
     rene = rene.filter((a) => a.pris >= Math.max(nedreGrense, 15000));
+  }
+
+  // 2b) Relativt filter mot FEIL MODELLVARIANT: en bil under 45 % av medianen
+  //     er nesten alltid en billigere variant som sneik seg inn (f.eks. en vanlig
+  //     A180 blandet med A45 AMG), en delebil, eller en feilpriset annonse.
+  //     Dette hindrer at "billigste seriøse" blir absurd lav.
+  if (rene.length >= 4) {
+    const medianAlle = persentil(rene.map((a) => a.pris).sort((x, y) => x - y), 50);
+    rene = rene.filter((a) => a.pris >= medianAlle * 0.45);
   }
 
   if (rene.length < 3) return { antall: rene.length, forFå: true };
