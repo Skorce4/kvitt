@@ -381,6 +381,9 @@ body.sub-reklamasjon #page-reklamasjon{display:block}
 .backlink{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;text-decoration:none;font-family:'Space Grotesk';font-weight:600;font-size:13px;padding:9px 16px;border-radius:99px;transition:.15s;cursor:pointer;margin-bottom:24px}
 .backlink:hover{background:rgba(255,255,255,.14);transform:translateX(-2px)}
 .backlink svg{width:15px;height:15px}
+/* Ordbytt-animasjon i hero: ord glir mykt inn/ut */
+.ordbytt{display:inline-block;transition:opacity .5s ease,transform .5s ease;will-change:opacity,transform}
+.ordbytt.ut{opacity:0;transform:translateY(-8px)}
 .subpage-hero .sp-eyebrow{color:var(--green-bright);margin-bottom:14px;display:inline-flex;align-items:center;gap:9px}
 .subpage-hero .sp-eyebrow::before{content:'';width:24px;height:1px;background:rgba(55,196,111,.5)}
 .subpage-hero h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(28px,5vw,44px);line-height:1.08;letter-spacing:-1px;margin-bottom:14px;max-width:680px}
@@ -644,8 +647,8 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <div class="hero-grid"></div>
   <div class="hero-wave"><svg viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 60 L0 30 Q 300 0 600 28 T 1200 26 L1200 60 Z" fill="#F6F4EF"/></svg></div>
   <div class="wrap">
-    <span class="hero-eyebrow lbl">For deg som selger bil privat</span>
-    <h1>Slipp at kjøperen<br>kommer <span class="hl">tilbake</span></h1>
+    <span class="hero-eyebrow lbl">For deg som vurderer å selge bilen privat</span>
+    <h1><span class="ordbytt" id="ordbytt">Slipp</span> at kjøperen<br>kommer <span class="hl">tilbake</span></h1>
     <p class="sub">Lim inn annonsen din, så sjekker Kvittn hvor godt den beskytter deg mot reklamasjon — og gir deg teksten som tetter hullene. Bli kvittn, trygt.</p>
   </div>
 </header>
@@ -867,6 +870,22 @@ function lineField(cv,color,opts){
   return ()=>{on=false;};
 }
 lineField(document.getElementById('heroCv'),'#37c46f',{count:26,alBoost:1.6});
+// Ordbytt i hero: bytt sakte mellom synonymer med myk fade
+(function(){
+  const el=document.getElementById('ordbytt');if(!el)return;
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  // Synonymer som alle passer naturlig i "___ at kjøperen kommer tilbake"
+  const synonymer=['Slipp','Unngå','Slipp'];
+  let i=0;
+  setInterval(()=>{
+    el.classList.add('ut');            // fade ut
+    setTimeout(()=>{
+      i=(i+1)%synonymer.length;
+      el.textContent=synonymer[i];
+      el.classList.remove('ut');       // fade inn nytt ord
+    },500);
+  },3200);
+})();
 // Hvorfor-seksjon: start animasjon først når den scrolles i syne (ytelse)
 (function(){
   const cv=document.getElementById('whyCv');if(!cv)return;
