@@ -18,23 +18,22 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, grunn: "Mangler merke/år for søk." });
     }
 
-    // Bygg FINN-søke-URL med STRENGE krav for sammenlignbarhet:
-    // - Nøyaktig samme årsmodell (ikke ±2 år)
-    // - Kilometerstand innenfor 12 000 km av selgerens bil
-    // Dette gir færre, men langt mer sammenlignbare treff.
+    // Søk BREDT (så vi får nok biler å jobbe med), filtrer STRENGT i koden etterpå.
+    // ±1 år og et romslig km-vindu i søket – selve sammenlignbarheten håndteres
+    // i analyserPriser, som prioriterer samme år + nær km, men løsner heller på
+    // kravet enn å gi brukeren ingenting.
     const aarNum = parseInt(aar, 10);
     const query = [merke, modell].filter(Boolean).join(" ");
     let sokUrl =
       "https://www.finn.no/mobility/search/car?q=" +
       encodeURIComponent(query) +
-      "&year_from=" + aarNum +
-      "&year_to=" + aarNum +
+      "&year_from=" + (aarNum - 1) +
+      "&year_to=" + (aarNum + 1) +
       "&sort=PRICE_ASC";
     const kmTall = egenKm ? parseInt(String(egenKm).replace(/\D/g, ""), 10) : null;
     if (kmTall && kmTall > 0) {
-      // Søk innenfor ±12 000 km (FINN tar from/to)
-      sokUrl += "&mileage_from=" + Math.max(0, kmTall - 12000);
-      sokUrl += "&mileage_to=" + (kmTall + 12000);
+      // Romslig km-vindu i søket (±40k) – strammes til i analysen
+      sokUrl += "&mileage_to=" + (kmTall + 40000);
     }
 
     const html = await hentViaZyte(sokUrl, zyteKey);
@@ -199,21 +198,21 @@ function analyserPriser(annonser, egenPris, egenKm) {
 
   if (rene.length < 3) return { antall: rene.length, forFå: true };
 
-  // 3) STRENGT km-krav: kun biler innenfor 12 000 km av selgerens bil teller.
-  //    Vi utvider IKKE vinduet – en bil med for ulik km er ikke sammenlignbar.
-  //    Har vi færre enn 3 innenfor kravet, sier vi heller "for få" enn å vise
-  //    upålitelige tall basert på biler som ikke egentlig kan sammenlignes.
+  // 3) Km-prioritering med fallback: prøv strengt (12k) først for best
+  //    sammenlignbarhet, men løsne gradvis heller enn å gi brukeren ingenting.
+  //    Vi noterer hvor stramt vinduet ble, så vi kan være ærlige i visningen.
+  let kmVindu = null;
   if (egenKm && egenKm > 0) {
     const medKm = rene.filter((a) => a.km && a.km > 0);
-    const kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 12000);
-    if (kmNære.length >= 3) {
-      rene = kmNære; // bruk kun de km-sammenlignbare
-    } else if (medKm.length >= 3) {
-      // Vi har km-data, men for få nær selgerens km → ikke pålitelig nok
-      return { antall: kmNære.length, forFå: true, grunnKm: true };
+    if (medKm.length >= 3) {
+      for (const vindu of [12000, 20000, 30000, 50000]) {
+        const nære = medKm.filter((a) => Math.abs(a.km - egenKm) <= vindu);
+        if (nære.length >= 3) { rene = nære; kmVindu = vindu; break; }
+      }
+      // Hvis selv 50k ikke gir 3, bruk alle med km-data (bedre enn ingenting)
+      if (!kmVindu && medKm.length >= 3) { rene = medKm; kmVindu = null; }
     }
-    // Hvis nesten ingen biler har km-data i det hele tatt, faller vi tilbake til
-    // alle rene (bedre enn ingenting), siden søket allerede filtrerte på år+km.
+    // Hvis nesten ingen har km-data, faller vi tilbake til alle rene
   }
 
   const grunnlag = rene;
@@ -237,8 +236,8 @@ function analyserPriser(annonser, egenPris, egenKm) {
   return {
     antall: grunnlag.length,
     antallTotalt: grunnlag.length,
-    kmVektet: !!(egenKm && egenKm > 0),
-    aarStrengt: true,
+    kmVektet: kmVindu != null,
+    kmVindu: kmVindu,
     lavest, høyest, snitt, median, nedreKlynge,
     egenPris: egenPris ? Number(egenPris) : null,
     vurdering,
