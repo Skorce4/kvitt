@@ -1038,7 +1038,7 @@ function render(r){
       const head='<div class="step-eyebrow lbl"><span class="ic">KR</span>Pris mot markedet</div>'+
         '<h3>Ligger prisen din riktig?</h3>';
       if(window.__prisTom){
-        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN til å gi et pålitelig markedsbilde. Dette skjer for sjeldne modeller eller når annonsen mangler pris/år.</p>';
+        return head+'<p class="lead">Fant ikke nok biler som er sammenlignbare nok til et pålitelig prisbilde. For en presis vurdering krever vi samme årsmodell og kilometerstand innenfor 12 000 km – finnes det for få slike på FINN akkurat nå, viser vi heller ingenting enn et misvisende tall.</p>';
       }
       if(!p){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
@@ -1139,15 +1139,22 @@ function render(r){
   steps.push({label:'Spørsmål',render:()=>{
     const a=window.__analyse;
     const qs=(a.questions||[]).map((q,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
-    const foerEtter=(a.nyScore!=null&&a.score!=null)?
+    // Forbedret tekst skal ALDRI gi lavere score enn originalen. Hvis AI returnerer
+    // en lavere (eller lik) nyScore, løft den til minst noen poeng over originalen,
+    // kappet på 100. En forbedring som "senker" scoren gir ingen mening for brukeren.
+    let visNyScore=a.nyScore;
+    if(a.nyScore!=null&&a.score!=null&&a.nyScore<=a.score){
+      visNyScore=Math.min(100,a.score+Math.max(4,Math.round((100-a.score)*0.4)));
+    }
+    const foerEtter=(visNyScore!=null&&a.score!=null)?
       '<div class="foeretter">'+
         '<div class="fe-t">Med forbedringene dine</div>'+
         '<div class="fe-row">'+
           '<div class="fe-box"><span class="fe-num" style="color:'+colorFor(a.score)+'">'+a.score+'</span><span class="fe-lab">Nå</span></div>'+
           '<span class="fe-arrow">→</span>'+
-          '<div class="fe-box"><span class="fe-num" style="color:'+colorFor(a.nyScore)+'">'+a.nyScore+'</span><span class="fe-lab">Etter</span></div>'+
+          '<div class="fe-box"><span class="fe-num" style="color:'+colorFor(visNyScore)+'">'+visNyScore+'</span><span class="fe-lab">Etter</span></div>'+
         '</div>'+
-        '<p class="fe-note">Bruk den forbedrede teksten og forbeholdet, så løfter du deg fra '+a.score+' til rundt '+a.nyScore+' av 100.</p>'+
+        '<p class="fe-note">Bruk den forbedrede teksten og forbeholdet, så løfter du deg fra '+a.score+' til rundt '+visNyScore+' av 100.</p>'+
       '</div>':'';
     return '<div class="step-eyebrow lbl"><span class="ic">05</span>Spørsmål</div>'+
     '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning – det bygger tillit og forebygger krav.</p>'+
@@ -1195,7 +1202,7 @@ function byggKortdata(r){
       s.kort={ic:'03',tittel:'Forbeholdstekst',tall:'Klar',tekst:'Juridisk trygg tekst',farge:GREEN};
     }
     else if(s.label==='Bedre annonse'){
-      s.kort={ic:'04',tittel:'Bedre annonse',tall:()=>window.__analyse&&window.__analyse.nyScore?('→ '+window.__analyse.nyScore):'Klar',tekst:'Forbedret annonsetekst',farge:GREEN};
+      s.kort={ic:'04',tittel:'Bedre annonse',tall:()=>{const a=window.__analyse;if(!a||a.nyScore==null)return 'Klar';let ns=a.nyScore;if(a.score!=null&&ns<=a.score)ns=Math.min(100,a.score+Math.max(4,Math.round((100-a.score)*0.4)));return '→ '+ns;},tekst:'Forbedret annonsetekst',farge:GREEN};
     }
     else if(s.label==='Spørsmål'){
       s.kort={ic:'05',tittel:'Spørsmål fra kjøper',tall:()=>{const q=window.__analyse&&window.__analyse.questions;return q&&q.length?q.length+' stk':'Klar';},tekst:'Vær forberedt',farge:GREEN};
