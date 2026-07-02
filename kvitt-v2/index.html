@@ -544,6 +544,23 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .prisbanner p{margin:0;font-size:14px;line-height:1.55;color:var(--ink2)}
 .prisgraf{background:#fff;border:1px solid rgba(228,223,212,.6);border-radius:var(--r-lg);box-shadow:var(--sh);padding:4px 22px}
 .pg-rad{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
+/* TRE-TALL PRISVISNING */
+.pris3{display:flex;flex-direction:column;gap:12px;margin:18px 0}
+.pris3-kort{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:4px}
+.pris3-kort.hoved{background:linear-gradient(135deg,rgba(55,196,111,.1),rgba(55,196,111,.03));border-color:rgba(55,196,111,.3)}
+.p3-lab{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.pris3-kort.hoved .p3-lab{color:var(--green-deep)}
+.p3-tall{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:30px;line-height:1.05;color:var(--ink)}
+.pris3-kort.hoved .p3-tall{color:var(--green-deep)}
+.p3-note{font-size:12.5px;color:var(--ink2)}
+/* Differanse-blokk */
+.pris3-diff{border-radius:14px;padding:16px 20px;display:flex;flex-direction:column;gap:3px;border:1px solid}
+.pris3-diff.warn{background:rgba(244,180,60,.08);border-color:rgba(244,180,60,.3)}
+.pris3-diff.ok{background:rgba(55,196,111,.08);border-color:rgba(55,196,111,.3)}
+.p3d-tall{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;line-height:1.05}
+.pris3-diff.warn .p3d-tall{color:#b8860b}
+.pris3-diff.ok .p3d-tall{color:var(--green-deep)}
+.p3d-tekst{font-size:13px;color:var(--ink2)}
 .pg-rad:last-child{border-bottom:none}
 .pg-rad.hl{background:linear-gradient(90deg,rgba(55,196,111,.06),transparent);margin:0 -22px;padding-left:22px;padding-right:22px;border-radius:8px}
 .pg-lab{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.02em;color:var(--ink3);text-transform:uppercase}
@@ -1098,24 +1115,49 @@ function render(r){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
       }
       const kr=(n)=>n?n.toLocaleString('nb-NO')+' kr':'–';
-      // Vurderingsbanner hvis egen pris finnes
+      // TRE tall å forholde seg til: markedsverdi, markedssnitt, avstand fra din pris.
+      const markedsverdi=p.nedreKlynge;   // realistisk salgspris (billigste seriøse-nivå)
+      const markedssnitt=p.snitt;          // hva markedet i snitt tar
+      // Differanse: din pris mot markedsverdien
+      let diffBlokk='';
+      if(p.egenPris){
+        const diff=p.egenPris-markedsverdi;
+        const over=diff>0;
+        const absDiff=Math.abs(diff);
+        const diffFarge=over?'warn':'ok';
+        const diffTekst=over
+          ? 'Du ligger '+kr(absDiff)+' over markedsverdien'
+          : diff<0 ? 'Du ligger '+kr(absDiff)+' under markedsverdien' : 'Du ligger på markedsverdien';
+        diffBlokk='<div class="pris3-diff '+diffFarge+'">'+
+          '<span class="p3d-tall">'+(over?'+':diff<0?'−':'')+kr(absDiff).replace(' kr','')+' kr</span>'+
+          '<span class="p3d-tekst">'+diffTekst+'</span>'+
+        '</div>';
+      }
+      // Vurderingsbanner
       let banner='';
       if(p.vurdering&&p.egenPris){
-        const tekst=p.vurdering==='over'?'Prisen din ligger over markedssnittet. Vurder om km, utstyr eller tilstand forsvarer det – ellers kan den bli stående.':
-          p.vurdering==='under'?'Prisen din ligger under de billigste seriøse annonsene. Du kan sannsynligvis ta mer.':
-          'Prisen din ligger midt i markedet – godt plassert for et raskt, trygt salg.';
-        const farge=p.vurdering==='over'?'warn':p.vurdering==='under'?'ok':'ok';
+        const tekst=p.vurdering==='over'?'Prisen din ligger over markedet. Vurder om km, utstyr eller tilstand forsvarer det – ellers kan den bli stående lenge.':
+          p.vurdering==='under'?'Prisen din ligger under markedsverdien. Du kan sannsynligvis ta mer.':
+          'Prisen din ligger godt plassert i markedet – riktig for et raskt, trygt salg.';
+        const farge=p.vurdering==='over'?'warn':'ok';
         banner='<div class="prisbanner '+farge+'"><div class="pb-din">Din pris: '+kr(p.egenPris)+'</div><p>'+tekst+'</p></div>';
       }
       return head+'<p class="lead">Basert på '+p.antall+' sammenlignbare biler på FINN (vrak og skadede filtrert bort).</p>'+
         banner+
-        '<div class="prisgraf">'+
-          '<div class="pg-rad"><span class="pg-lab">Billigste seriøse</span><span class="pg-val">'+kr(p.lavest)+'</span></div>'+
-          '<div class="pg-rad hl"><span class="pg-lab">Nedre klynge <em>(her konkurrerer du)</em></span><span class="pg-val">'+kr(p.nedreKlynge)+'</span></div>'+
-          '<div class="pg-rad"><span class="pg-lab">Markedssnitt</span><span class="pg-val">'+kr(p.snitt)+'</span></div>'+
-          '<div class="pg-rad"><span class="pg-lab">Høyeste</span><span class="pg-val">'+kr(p.høyest)+'</span></div>'+
+        '<div class="pris3">'+
+          '<div class="pris3-kort hoved">'+
+            '<span class="p3-lab">Markedsverdi</span>'+
+            '<span class="p3-tall">'+kr(markedsverdi)+'</span>'+
+            '<span class="p3-note">Her konkurrerer du – det kjøpere ser først</span>'+
+          '</div>'+
+          '<div class="pris3-kort">'+
+            '<span class="p3-lab">Markedssnitt</span>'+
+            '<span class="p3-tall">'+kr(markedssnitt)+'</span>'+
+            '<span class="p3-note">Hva markedet i snitt tar</span>'+
+          '</div>'+
+          diffBlokk+
         '</div>'+
-        '<p class="simnote">Markedsverdien ligger nær den nedre klyngen – det er dit kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>';
+        '<p class="simnote">Markedsverdien er der de billigste seriøse annonsene ligger – det kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>';
     }});
   }
   // Offisielle data fra Statens vegvesen (kun hvis reg.nr fantes i teksten)
