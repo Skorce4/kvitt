@@ -1405,12 +1405,33 @@ function startPrissjekk(merke,modell,aar,egenPris){
   }
   const aarNum=aar?String(aar).match(/(19|20)\d{2}/):null;
   if(!merke||!aarNum){window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();return;}
-  // Trekk km fra annonseteksten (for +50 000 km-filter)
+
+  // VIKTIG: vegvesen gir generisk modell ("A-Klasse"), men en A45 AMG er en helt
+  // annen prisklasse enn en vanlig A180. Vi trekker ut variant-signaler fra
+  // annonsetittelen og legger dem til i søket, så vi sammenligner riktig bil.
+  // Ser etter høyytelses-/variantkoder som skiller pris dramatisk.
+  const førsteLinje=(txt.split(/\n/)[0]||'')+' '+(txt.slice(0,120));
+  const variantTreff=[];
+  // AMG / M / RS / S-line / GTI / R / N-varianter + motorkoder (A45, C63, M3, RS6, S3, GTI…)
+  const vp=[
+    /\bAMG\b/i,/\bM(?:\s?)(?:Sport|Performance)\b/i,
+    /\b([A-Z]{1,3}\d{2,3})\b/,           // A45, C63, M340, RS6, S3, Q50 osv.
+    /\bGTI\b/i,/\bGTD\b/i,/\bR-?Line\b/i,/\bS-?Line\b/i,
+    /\b(\d{3})\s?(?:HK|hk|hp)\b/,        // effekt (360HK) – sterkt variant-signal
+    /\b(4MATIC|quattro|xDrive|AWD|4Motion)\b/i,
+  ];
+  for(const re of vp){const m=førsteLinje.match(re);if(m){variantTreff.push(m[1]||m[0]);}}
+  // Bygg forbedret modell-streng: generisk modell + variant-signaler (maks 3, unngå duplikat)
+  let modellSøk=modell||'';
+  const unike=[...new Set(variantTreff.map(v=>v.trim()).filter(Boolean))].slice(0,3);
+  if(unike.length){modellSøk=(modellSøk+' '+unike.join(' ')).trim();}
+
+  // Trekk km fra annonseteksten
   const kmMatch=txt.match(/(?:kilometerstand|km\b)[:\s]*(\d[\d\s]{2,8})/i)||txt.match(/(\d[\d\s]{2,8})\s*km\b/i);
   const egenKm=kmMatch?parseInt(kmMatch[1].replace(/\s/g,''),10):null;
   window.__prisVenter=true;oppdaterVisning();
   fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})})
+    body:JSON.stringify({merke:merke,modell:modellSøk,aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})})
     .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
       if(pd&&pd.ok&&pd.antall>=3){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
       else{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();}
