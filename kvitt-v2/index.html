@@ -394,42 +394,56 @@ body.sub-reklamasjon #page-reklamasjon{display:block}
 body.result-mode .landing{display:none!important}
 body.result-mode #inputPanel{display:none!important}
 body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
-.res-shell{max-width:680px;margin:0 auto;padding:40px 0 20px;position:relative}
+.res-shell{max-width:1080px;margin:0 auto;padding:40px 0 20px}
+@media(max-width:900px){.res-shell{max-width:680px}}
 .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .res-kicker{color:var(--ink3)}
 /* ETT PANEL – ACCORDION */
-/* LISTE + FULLSKJERM EKSPANDER-MODELL */
-.panel-liste{max-width:680px;margin:0 auto;transition:opacity .35s ease,transform .35s ease}
-.panel-liste.bak{opacity:0;transform:scale(.97);pointer-events:none}
-.acc-liste{display:flex;flex-direction:column;gap:10px}
-.acc-pil.expand{font-size:15px}
-/* Fullskjerm-overlay */
-.panel-full{position:absolute;inset:0;max-width:680px;margin:0 auto;pointer-events:none;opacity:0}
-.panel-full.vis{pointer-events:auto;opacity:1}
-.full-kort{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-xl);box-shadow:var(--sh-clay);overflow:hidden;will-change:transform}
-.full-kort::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--acc-farge,var(--green));opacity:.85}
-.full-topp{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 24px 18px 28px;border-bottom:1px solid var(--line)}
-.full-back{background:transparent;border:none;color:var(--green);font-family:'Poppins',sans-serif;font-weight:600;font-size:14px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;padding:6px 0}
-.full-back:hover{color:var(--ink);transform:translateX(-3px)}
-.full-merke{display:inline-flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
-.full-body{padding:24px 28px 28px}
-.full-body .step-eyebrow{display:none}
-.full-body h3{margin-top:0}
-/* Lys dashboard i fullskjerm (Diagnose) */
-.full-body .dashboard{background:none;border:none;box-shadow:none;padding:0;margin:0}
-.full-body .dash-readout{background:var(--paper);border:1px solid var(--line);border-radius:14px}
-.full-body .dash-rmeta .dlab{color:var(--ink3)}
-.full-body .dash-rmeta .dstatus{color:var(--ink)}
-.full-body .dash-bars i{background:rgba(15,29,51,.1)}
-.full-body .dash-blurb{color:var(--ink2)}
-.full-body .dash-kroner{background:var(--paper);color:var(--ink2)}
-.full-body .dash-lamps-t{color:var(--ink3)}
-.full-body .dlamp{background:#fff;border:1px solid var(--line)}
-.full-body .dlamp .db b{color:var(--ink)}
-.full-body .dlamp-pil{color:var(--ink3)}
-.full-body .dlamp-inner p{color:var(--ink2)}
-.full-body .delknapp{background:var(--paper);border:1px solid var(--line2);color:var(--navy)}
-.full-body .delknapp:hover{background:var(--green-light)}
+/* TO KOLONNER + FAST-HØYDE UTVIDING */
+.panel-to{display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start;max-width:1080px;margin:0 auto}
+@media(max-width:900px){.panel-to{grid-template-columns:1fr}}
+@media(min-width:901px){.panel-v{position:sticky;top:20px}}
+/* Diagnose-kort venstre – lyst, matcher radene */
+.diag-kort{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
+.diag-kort::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85}
+.diag-hode{display:flex;align-items:center;gap:16px;padding:0 22px 0 26px;height:76px;border-bottom:1px solid var(--line)}
+.diag-body{padding:18px 22px 22px}
+.rad-liste{display:flex;flex-direction:column;gap:10px}
+/* Rad – smooth utviding til FAST høyde */
+.rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .3s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1)}
+.rad:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.rad.open{box-shadow:var(--sh-md);transform:none}
+.rad::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85;transition:width .3s cubic-bezier(.4,0,.2,1);z-index:2}
+.rad.open::before{width:6px}
+.rad-hode{width:100%;height:76px;display:flex;align-items:center;gap:16px;padding:0 22px 0 26px;background:none;border:none;cursor:pointer;text-align:left;font-family:'Poppins',sans-serif}
+.acc-pil{flex:none;width:26px;height:26px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-size:12px;color:var(--ink3);transition:transform .4s cubic-bezier(.34,1.56,.64,1),background .25s;margin-left:2px}
+.rad:hover .acc-pil{background:var(--green-light)}
+.rad.open .acc-pil{transform:rotate(180deg);color:var(--green);background:var(--green-light)}
+/* Utvidingen: FAST høyde (samme for alle faner), smooth. */
+.rad-utvid{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.4,0,.2,1)}
+.rad.open .rad-utvid{grid-template-rows:1fr}
+.rad-scroll{overflow:hidden;min-height:0}
+.rad.open .rad-scroll{height:440px;overflow-y:auto;padding:4px 22px 22px}
+.rad-scroll .step-eyebrow{display:none}
+.rad-scroll h3{margin-top:6px}
+/* Pen scrollbar i utvidet fane */
+.rad-scroll::-webkit-scrollbar{width:6px}
+.rad-scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+/* Lys dashboard-stil i venstre diagnose-kort */
+.diag-body .dashboard{background:none;border:none;box-shadow:none;padding:0;margin:0}
+.diag-body .dash-readout{background:var(--paper);border:1px solid var(--line);border-radius:14px}
+.diag-body .dash-rmeta .dlab{color:var(--ink3)}
+.diag-body .dash-rmeta .dstatus{color:var(--ink)}
+.diag-body .dash-bars i{background:rgba(15,29,51,.1)}
+.diag-body .dash-blurb{color:var(--ink2)}
+.diag-body .dash-kroner{background:var(--paper);color:var(--ink2)}
+.diag-body .dash-lamps-t{color:var(--ink3)}
+.diag-body .dlamp{background:#fff;border:1px solid var(--line)}
+.diag-body .dlamp .db b{color:var(--ink)}
+.diag-body .dlamp-pil{color:var(--ink3)}
+.diag-body .dlamp-inner p{color:var(--ink2)}
+.diag-body .delknapp{background:var(--paper);border:1px solid var(--line2);color:var(--navy)}
+.diag-body .delknapp:hover{background:var(--green-light)}
 .panel-liste{position:relative}
 .acc-liste{display:flex;flex-direction:column;gap:10px}
 .acc-rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .22s var(--ease),transform .16s var(--ease),border-color .2s}
@@ -1157,10 +1171,7 @@ function render(r){
 // Bygger kort-sammendrag (tall + kort beskrivelse) for hver accordion-rad.
 function byggKortdata(r){
   WIZ.steps.forEach((s)=>{
-    if(s.label==='Diagnose'){
-      s.kort={ic:'01',tittel:'Trygghetsdiagnose',tall:()=>String(WIZ.score),tekst:()=>WIZ.label||'Se detaljer',farge:WIZ.col};
-      return;
-    }
+    if(s.label==='Diagnose'){ s.kort=null; return; } // vises i venstre kolonne
     if(s.label==='Risiko i kroner'){
       const rk=r.reklamasjon||{};
       const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('nb-NO')+' kr':'Lav';
@@ -1189,101 +1200,52 @@ function byggKortdata(r){
   });
 }
 
-// Viser liste av like rader. Klikk en rad → den ekspanderer til fullskjerm.
+// Viser to kolonner: 01 Diagnose fast venstre, resten som utvidbare rader høyre.
 function visPanel(){
+  const s0=WIZ.steps[0];
+  const scoreHtml=s0.render?s0.render():s0.html;
   document.getElementById('dashView').innerHTML=
-    '<div class="panel-liste" id="panelListe">'+
-      '<div class="acc-liste" id="accListe"></div>'+
-      '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>'+
-    '</div>'+
-    '<div class="panel-full" id="panelFull"></div>';
+    '<div class="panel-to">'+
+      '<div class="panel-v">'+
+        '<div class="diag-kort" style="--acc-farge:'+WIZ.col+'">'+
+          '<div class="diag-hode"><span class="acc-ic">01</span><span class="acc-midt"><span class="acc-tittel">Trygghetsdiagnose</span><span class="acc-tekst">'+esc(WIZ.label||'')+'</span></span><span class="acc-tall" style="color:'+WIZ.col+'">'+WIZ.score+'</span></div>'+
+          '<div class="diag-body">'+scoreHtml+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="panel-h">'+
+        '<div class="rad-liste" id="radListe"></div>'+
+        '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>'+
+      '</div>'+
+    '</div>';
   tegnRader();
+  if(document.getElementById('scoreNum'))animerScore();
 }
 
-// Tegner alle steg som like rader (inkl Diagnose).
+// Tegner høyre-kolonnens rader. Klikk utvider til fast høyde.
 function tegnRader(){
   const val=(x)=>typeof x==='function'?x():x;
   const rader=WIZ.steps.map((s,i)=>{
-    const k=s.kort||{ic:'01',tittel:'Trygghetsdiagnose',tall:()=>String(WIZ.score),tekst:WIZ.label||'',farge:WIZ.col};
-    return '<div class="acc-rad" data-i="'+i+'" style="--acc-farge:'+(k.farge||GREEN)+'">'+
-      '<button class="acc-hode" onclick="ekspander('+i+')">'+
-        '<span class="acc-ic">'+k.ic+'</span>'+
-        '<span class="acc-midt"><span class="acc-tittel">'+esc(k.tittel)+'</span>'+
-        '<span class="acc-tekst">'+esc(String(val(k.tekst)))+'</span></span>'+
-        '<span class="acc-tall" style="color:'+(k.farge||'#0f1d33')+'">'+esc(String(val(k.tall)))+'</span>'+
-        '<span class="acc-pil expand">⤢</span>'+
+    if(!s.kort)return ''; // Diagnose (i=0) vises i venstre kolonne, ikke her
+    const åpen=WIZ.åpen===i;
+    return '<div class="rad'+(åpen?' open':'')+'" data-i="'+i+'" style="--acc-farge:'+(s.kort.farge||GREEN)+'">'+
+      '<button class="rad-hode" onclick="velgRad('+i+')">'+
+        '<span class="acc-ic">'+s.kort.ic+'</span>'+
+        '<span class="acc-midt"><span class="acc-tittel">'+esc(s.kort.tittel)+'</span>'+
+        '<span class="acc-tekst">'+esc(String(val(s.kort.tekst)))+'</span></span>'+
+        '<span class="acc-tall" style="color:'+(s.kort.farge||'#0f1d33')+'">'+esc(String(val(s.kort.tall)))+'</span>'+
+        '<span class="acc-pil">▾</span>'+
       '</button>'+
+      '<div class="rad-utvid"><div class="rad-scroll">'+(s.render?s.render():s.html)+'</div></div>'+
     '</div>';
   }).join('');
-  const liste=document.getElementById('accListe');
+  const liste=document.getElementById('radListe');
   if(liste)liste.innerHTML=rader;
 }
 
-// Ekspanderer en rad til fullskjerm med FLIP-animasjon.
-function ekspander(i){
-  const s=WIZ.steps[i];
-  const rad=document.querySelector('.acc-rad[data-i="'+i+'"]');
-  const full=document.getElementById('panelFull');
-  const liste=document.getElementById('panelListe');
-  if(!rad||!full)return;
-  WIZ.åpen=i;
-
-  // Mål radens posisjon (FIRST)
-  const r=rad.getBoundingClientRect();
-  const k=s.kort||{ic:'01',tittel:'Trygghetsdiagnose',farge:WIZ.col};
-  const innhold=s.render?s.render():s.html;
-
-  // Bygg fullskjerm-innholdet
-  full.innerHTML=
-    '<div class="full-kort" style="--acc-farge:'+(k.farge||GREEN)+'">'+
-      '<div class="full-topp">'+
-        '<button class="full-back" onclick="kollaps()">← Tilbake til oversikt</button>'+
-        '<span class="full-merke"><span class="acc-ic">'+k.ic+'</span>'+esc(k.tittel)+'</span>'+
-      '</div>'+
-      '<div class="full-body">'+innhold+'</div>'+
-    '</div>';
-
-  // FLIP: start fra radens posisjon/størrelse, animer til full
-  const kort=full.querySelector('.full-kort');
-  const containerRect=full.getBoundingClientRect();
-  const dx=r.left-containerRect.left, dy=r.top-containerRect.top;
-  const sx=r.width/containerRect.width;
-  const sy=r.height/kort.offsetHeight;
-
-  full.classList.add('vis');
-  liste.classList.add('bak');
-  kort.style.transformOrigin='top left';
-  kort.style.transform='translate('+dx+'px,'+dy+'px) scale('+sx+','+sy+')';
-  kort.style.opacity='.4';
-  // Neste frame: animer til naturlig posisjon
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    kort.style.transition='transform .5s cubic-bezier(.22,1,.36,1),opacity .35s ease';
-    kort.style.transform='translate(0,0) scale(1,1)';
-    kort.style.opacity='1';
-    if(document.getElementById('scoreNum')){scoreAnimert=false;animerScore();}
-  }));
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-// Kollapser fullskjerm tilbake til listen med FLIP-animasjon.
-function kollaps(){
-  const full=document.getElementById('panelFull');
-  const liste=document.getElementById('panelListe');
-  const kort=full&&full.querySelector('.full-kort');
-  if(!full||!kort||WIZ.åpen==null){if(full)full.classList.remove('vis');if(liste)liste.classList.remove('bak');return;}
-  const rad=document.querySelector('.acc-rad[data-i="'+WIZ.åpen+'"]');
-  if(!rad){full.classList.remove('vis');liste.classList.remove('bak');full.innerHTML='';WIZ.åpen=null;return;}
-  const r=rad.getBoundingClientRect();
-  const containerRect=full.getBoundingClientRect();
-  const dx=r.left-containerRect.left, dy=r.top-containerRect.top;
-  const sx=r.width/containerRect.width;
-  const sy=r.height/kort.offsetHeight;
-  kort.style.transition='transform .42s cubic-bezier(.4,0,.2,1),opacity .3s ease';
-  kort.style.transformOrigin='top left';
-  kort.style.transform='translate('+dx+'px,'+dy+'px) scale('+sx+','+sy+')';
-  kort.style.opacity='.3';
-  liste.classList.remove('bak');
-  setTimeout(()=>{full.classList.remove('vis');full.innerHTML='';WIZ.åpen=null;},400);
+// Velger/lukker en rad. Kun én åpen om gangen. Fast høyde, smooth CSS-animasjon.
+function velgRad(i){
+  WIZ.åpen=(WIZ.åpen===i)?null:i;
+  tegnRader();
 }
 
 // Åpner/lukker en rad. Kun én åpen om gangen, med animasjon.
@@ -1329,12 +1291,8 @@ function toggleMer(id){
 // Re-tegner panelet når bakgrunnsdata (tekst/pris/vegvesen) lander.
 function oppdaterVisning(){
   if(!WIZ.steps.length)return;
-  // Hvis noe er ekspandert til fullskjerm, oppdater bare rad-listen bak (ikke lukk fullskjerm)
-  if(WIZ.åpen!=null&&document.getElementById('panelFull')&&document.getElementById('panelFull').classList.contains('vis')){
-    tegnRader();
-  }else{
-    tegnRader();
-  }
+  if(document.getElementById('radListe'))tegnRader();
+  else visPanel();
 }
 // Kalles når bakgrunns-tekstkallet er ferdig. Oppdaterer dashboard-kort
 // eller den åpne siden slik at nye data (tekst, nyScore) vises.
