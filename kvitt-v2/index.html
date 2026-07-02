@@ -976,7 +976,19 @@ function render(r){
       const head='<div class="step-eyebrow lbl"><span class="ic">KR</span>Pris mot markedet</div>'+
         '<h3>Ligger prisen din riktig?</h3>';
       if(window.__prisTom){
-        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN til å gi et pålitelig markedsbilde. Dette skjer for sjeldne modeller eller når annonsen mangler pris/år.</p>';
+        const dbg=window.__prisDebug;
+        let dbgHtml='';
+        if(dbg){
+          dbgHtml='<div style="margin-top:14px;padding:14px;background:#0f1d33;border-radius:10px;font-family:monospace;font-size:11px;color:#9fb0c4;line-height:1.6;overflow-x:auto"><b style="color:#37c46f">DEBUG (midlertidig)</b><br>'+
+            'søk-URL: '+esc(dbg.sokUrl||'?')+'<br>'+
+            'HTML-lengde: '+(dbg.htmlLengde||0)+'<br>'+
+            'har NextData: '+dbg.harNextData+'<br>'+
+            'har JSON-LD: '+dbg.harJsonLd+'<br>'+
+            'pris-treff i tekst: '+(dbg.prisTreffITekst?dbg.prisTreffITekst.join(', '):'ingen')+'<br>'+
+            'antall parset: '+(dbg.antallParsed||0)+'<br>'+
+            'grunn: '+esc(dbg.grunn||'?')+'</div>';
+        }
+        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN til å gi et pålitelig markedsbilde.</p>'+dbgHtml;
       }
       if(!p){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
@@ -1163,8 +1175,8 @@ function tegnAccordion(){
   const val=(x)=>typeof x==='function'?x():x;
   const rader=WIZ.steps.map((s,i)=>{
     if(!s.kort)return '';
-    const åpen=WIZ.åpen===i;
-    return '<div class="acc-rad'+(åpen?' open':'')+'" data-i="'+i+'">'+
+    // Innhold rendres alltid (så det finnes for animasjon), men raden starter lukket.
+    return '<div class="acc-rad" data-i="'+i+'">'+
       '<button class="acc-hode" onclick="toggleAcc('+i+')">'+
         '<span class="acc-ic">'+s.kort.ic+'</span>'+
         '<span class="acc-midt"><span class="acc-tittel">'+esc(s.kort.tittel)+'</span>'+
@@ -1172,31 +1184,53 @@ function tegnAccordion(){
         '<span class="acc-tall" style="color:'+(s.kort.farge||'#0f1d33')+'">'+esc(String(val(s.kort.tall)))+'</span>'+
         '<span class="acc-pil">▾</span>'+
       '</button>'+
-      '<div class="acc-innhold"><div class="acc-inner">'+(åpen?(s.render?s.render():s.html):'')+'</div></div>'+
+      '<div class="acc-innhold"><div class="acc-inner">'+(s.render?s.render():s.html)+'</div></div>'+
     '</div>';
   }).join('');
   const liste=document.getElementById('accListe');
   if(liste)liste.innerHTML=rader;
+  // Åpne den aktive raden i neste frame, så grid-rows-overgangen animerer.
+  if(WIZ.åpen!=null){
+    const rad=liste&&liste.querySelector('.acc-rad[data-i="'+WIZ.åpen+'"]');
+    if(rad)requestAnimationFrame(()=>requestAnimationFrame(()=>rad.classList.add('open')));
+  }
 }
 
-// Åpner/lukker en rad. Kun accordion re-tegnes – score står i ro.
+// Åpner/lukker en rad. Kun én åpen om gangen, med animasjon.
 function toggleAcc(i){
-  WIZ.åpen=(WIZ.åpen===i)?null:i;
-  tegnAccordion();
+  const liste=document.getElementById('accListe');
+  const åpenNå=liste&&liste.querySelector('.acc-rad[data-i="'+i+'"]');
+  const erÅpen=åpenNå&&åpenNå.classList.contains('open');
+  // Lukk alle (animert)
+  if(liste)liste.querySelectorAll('.acc-rad.open').forEach((r)=>r.classList.remove('open'));
+  if(erÅpen){
+    WIZ.åpen=null; // klikket på en åpen rad – bare lukk
+  }else{
+    WIZ.åpen=i;
+    if(åpenNå)requestAnimationFrame(()=>requestAnimationFrame(()=>åpenNå.classList.add('open')));
+  }
 }
 
 let scoreAnimert=false;
 function animerScore(){
-  if(scoreAnimert)return; // animer bare første gang panelet vises
-  scoreAnimert=true;
   const score=WIZ.score, col=WIZ.col;
+  const sn=document.getElementById('scoreNum');
   const bw=document.getElementById('dashBars');
   if(bw){bw.innerHTML='';for(let i=0;i<20;i++)bw.appendChild(document.createElement('i'));}
+  const settLamper=(v)=>{if(bw){const lit=Math.round(20*v/100);[...bw.children].forEach((b,i)=>{b.style.background=i<lit?col:'rgba(255,255,255,.08)';b.style.boxShadow=i<lit?('0 0 5px '+col+'99'):'none';});}};
+  if(scoreAnimert){
+    // Allerede animert (f.eks. panel re-tegnet ved dataoppdatering) – sett sluttverdi direkte
+    if(sn)sn.textContent=score;
+    settLamper(score);
+    return;
+  }
+  scoreAnimert=true;
+  if(sn)sn.textContent=0;settLamper(0);
   setTimeout(()=>{
     let cur=0;const t=setInterval(()=>{
       cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}
-      const sn=document.getElementById('scoreNum');if(sn)sn.textContent=cur;
-      if(bw){const lit=Math.round(20*cur/100);[...bw.children].forEach((b,i)=>{b.style.background=i<lit?col:'rgba(255,255,255,.08)';b.style.boxShadow=i<lit?('0 0 5px '+col+'99'):'none';});}
+      const el=document.getElementById('scoreNum');if(el)el.textContent=cur;
+      settLamper(cur);
     },26);
     if(score>80)setTimeout(confetti,500);
   },300);
@@ -1234,10 +1268,17 @@ function startPrissjekk(merke,modell,aar,egenPris){
   if(!merke||!aarNum){window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();return;}
   window.__prisVenter=true;oppdaterVisning();
   fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris})})
+    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,debug:true})})
     .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
-      if(pd&&pd.ok&&pd.antall>=3){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
-      else{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();}
+      // Lagre debug-info uansett utfall (midlertidig, for feilsøking)
+      window.__prisDebug=pd;
+      if(pd&&pd.antallParsed>=3){
+        // Debug-modus returnerer ikke ferdig analyse – gjør et ekte kall uten debug
+        const pr2=await fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris})});
+        const pd2=await pr2.json().catch(()=>({}));
+        if(pd2&&pd2.ok&&pd2.antall>=3){window.__pris=pd2;window.__prisVenter=false;oppdaterVisning();return;}
+      }
+      window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();
     }).catch(()=>{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();});
 }
 function oppdaterPrisSteg(){ oppdaterVisning(); }
