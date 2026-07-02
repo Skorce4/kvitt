@@ -18,19 +18,23 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, grunn: "Mangler merke/år for søk." });
     }
 
-    // Bygg FINN-søke-URL. Fritekst på "merke modell" + årsintervall ±2 år.
-    // Km-filter: hvis vi kjenner selgerens km, be FINN om biler opp til +50 000 km.
+    // Bygg FINN-søke-URL med STRENGE krav for sammenlignbarhet:
+    // - Nøyaktig samme årsmodell (ikke ±2 år)
+    // - Kilometerstand innenfor 12 000 km av selgerens bil
+    // Dette gir færre, men langt mer sammenlignbare treff.
     const aarNum = parseInt(aar, 10);
     const query = [merke, modell].filter(Boolean).join(" ");
     let sokUrl =
       "https://www.finn.no/mobility/search/car?q=" +
       encodeURIComponent(query) +
-      "&year_from=" + (aarNum - 2) +
-      "&year_to=" + (aarNum + 2) +
+      "&year_from=" + aarNum +
+      "&year_to=" + aarNum +
       "&sort=PRICE_ASC";
     const kmTall = egenKm ? parseInt(String(egenKm).replace(/\D/g, ""), 10) : null;
     if (kmTall && kmTall > 0) {
-      sokUrl += "&mileage_to=" + (kmTall + 50000);
+      // Søk innenfor ±12 000 km (FINN tar from/to)
+      sokUrl += "&mileage_from=" + Math.max(0, kmTall - 12000);
+      sokUrl += "&mileage_to=" + (kmTall + 12000);
     }
 
     const html = await hentViaZyte(sokUrl, zyteKey);
@@ -195,22 +199,24 @@ function analyserPriser(annonser, egenPris, egenKm) {
 
   if (rene.length < 3) return { antall: rene.length, forFå: true };
 
-  // 3) Km-vekting: hvis vi kjenner selgerens km og noen biler har km-data,
-  //    lag en delmengde av biler nærmest i km-stand (innen 10 000 km).
-  //    Markedsverdien baseres på DENNE gruppen hvis den er stor nok, siden
-  //    en bil med lik km-stand er mest sammenlignbar.
-  let kmNære = null;
-  const medKm = rene.filter((a) => a.km && a.km > 0);
-  if (egenKm && egenKm > 0 && medKm.length >= 3) {
-    kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 10000);
-    // Utvid vinduet trinnvis hvis for få innen 10k
-    if (kmNære.length < 3) kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 20000);
-    if (kmNære.length < 3) kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 35000);
-    if (kmNære.length < 3) kmNære = null; // ga opp – bruk hele settet
+  // 3) STRENGT km-krav: kun biler innenfor 12 000 km av selgerens bil teller.
+  //    Vi utvider IKKE vinduet – en bil med for ulik km er ikke sammenlignbar.
+  //    Har vi færre enn 3 innenfor kravet, sier vi heller "for få" enn å vise
+  //    upålitelige tall basert på biler som ikke egentlig kan sammenlignes.
+  if (egenKm && egenKm > 0) {
+    const medKm = rene.filter((a) => a.km && a.km > 0);
+    const kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 12000);
+    if (kmNære.length >= 3) {
+      rene = kmNære; // bruk kun de km-sammenlignbare
+    } else if (medKm.length >= 3) {
+      // Vi har km-data, men for få nær selgerens km → ikke pålitelig nok
+      return { antall: kmNære.length, forFå: true, grunnKm: true };
+    }
+    // Hvis nesten ingen biler har km-data i det hele tatt, faller vi tilbake til
+    // alle rene (bedre enn ingenting), siden søket allerede filtrerte på år+km.
   }
 
-  // Grunnlaget for markedsbildet: km-nære biler hvis vi har dem, ellers alle rene.
-  const grunnlag = (kmNære && kmNære.length >= 3) ? kmNære : rene;
+  const grunnlag = rene;
   const gP = grunnlag.map((a) => a.pris).sort((x, y) => x - y);
 
   const snitt = Math.round(gP.reduce((s, p) => s + p, 0) / gP.length);
@@ -230,8 +236,9 @@ function analyserPriser(annonser, egenPris, egenKm) {
 
   return {
     antall: grunnlag.length,
-    antallTotalt: rene.length,
-    kmVektet: !!(kmNære && kmNære.length >= 3),
+    antallTotalt: grunnlag.length,
+    kmVektet: !!(egenKm && egenKm > 0),
+    aarStrengt: true,
     lavest, høyest, snitt, median, nedreKlynge,
     egenPris: egenPris ? Number(egenPris) : null,
     vurdering,
