@@ -410,26 +410,29 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .diag-body{padding:18px 22px 22px}
 .rad-liste{display:flex;flex-direction:column;gap:10px;position:relative}
 /* Rad – normal tilstand */
-.rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .3s cubic-bezier(.4,0,.2,1),transform .3s cubic-bezier(.4,0,.2,1),opacity .3s ease}
-.rad:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .3s cubic-bezier(.4,0,.2,1),transform .28s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;will-change:transform}
+.rad:hover{box-shadow:var(--sh-md);transform:translateY(-3px)}
 .rad::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85;transition:width .3s cubic-bezier(.4,0,.2,1);z-index:2}
 .rad-hode{width:100%;height:76px;display:flex;align-items:center;gap:16px;padding:0 22px 0 26px;background:none;border:none;cursor:pointer;text-align:left;font-family:'Poppins',sans-serif}
 .acc-pil{flex:none;width:26px;height:26px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-size:13px;color:var(--ink3);transition:background .25s;margin-left:2px}
 .rad:hover .acc-pil{background:var(--green-light);color:var(--green)}
-/* Utvidingen – tilpasset høyde (ingen scroll), styres av Web Animations API */
-.rad-utvid{height:0;overflow:hidden}
-.rad-inner{padding:4px 22px 22px}
+/* Utvidingen – CSS grid-rows animerer høyden (følger .valgt-klassen) */
+.rad-utvid{display:grid;grid-template-rows:0fr;transition:grid-template-rows .42s cubic-bezier(.22,1,.36,1)}
+.rad.valgt .rad-utvid{grid-template-rows:1fr}
+.rad-utvid>.rad-inner{overflow:hidden;min-height:0}
+.rad.valgt .rad-inner{padding:4px 22px 22px}
 .rad-inner .step-eyebrow{display:none}
 .rad-inner h3{margin-top:6px}
 .rad-topp{margin-bottom:14px}
 .rad-back{margin-bottom:0;background:var(--navy);border-color:var(--navy);color:#fff}
 .rad-back:hover{background:var(--ink);transform:translateX(-2px)}
-/* VALGT rad – løftes over de andre */
-.rad.valgt{z-index:20;--acc-farge-w:6px}
+/* VALGT rad – løftes over de andre med skygge */
+.rad.valgt{z-index:20;box-shadow:0 24px 60px rgba(15,29,51,.25)}
 .rad.valgt::before{width:6px}
 /* DIMMEDE rader – krymper og fader bak */
-.har-valgt .rad.dimmet{opacity:.35;transform:scale(.96);filter:saturate(.7)}
-.har-valgt .rad.dimmet:hover{opacity:.6;transform:scale(.97)}
+/* DIMMEDE rader – kun opacity, ingen scale (unngår sidelengs-skift) */
+.har-valgt .rad.dimmet{opacity:.4}
+.har-valgt .rad.dimmet:hover{opacity:.7;transform:translateY(-2px)}
 /* Lys dashboard-stil i venstre diagnose-kort */
 .diag-body .dashboard{background:none;border:none;box-shadow:none;padding:0;margin:0}
 .diag-body .dash-readout{background:var(--paper);border:1px solid var(--line);border-radius:14px}
@@ -1246,97 +1249,46 @@ function tegnRader(){
 }
 
 // Velger en rad: den løfter seg over de andre, resten dimmes/krymper bak.
-let animGen=0; // generasjonsteller – ignorerer utdaterte animasjons-callbacks
+let animGen=0;
 
-// Setter en rad umiddelbart til lukket tilstand (ingen animasjon).
+// Rydder en rad til lukket tilstand og avbryter kjørende animasjoner.
 function nullstillRad(rad){
   if(!rad)return;
   rad.classList.remove('valgt','dimmet');
-  const inner=rad.querySelector('.rad-utvid');
-  if(inner){inner.style.height='';inner.style.opacity='';}
+  if(rad.getAnimations){rad.getAnimations().forEach((a)=>a.cancel());}
   rad.style.transform='';rad.style.boxShadow='';
 }
 
 function velgRad(i){
   const liste=document.getElementById('radListe');
   if(!liste)return;
-  // Klikk på allerede åpen rad → lukk den
   if(WIZ.åpen===i){lukkRad();return;}
-
-  animGen++; // ny handling – gjør gamle callbacks ugyldige
-  // Rydd ALLE rader umiddelbart (lukker en evt. tidligere åpen uten venting)
-  liste.querySelectorAll('.rad').forEach(nullstillRad);
-
   WIZ.åpen=i;
+  // Sett klasser synkront – CSS grid-rows animerer høyden (følger klassen)
   liste.classList.add('har-valgt');
-
+  let valgtRad=null;
   liste.querySelectorAll('.rad').forEach((rad)=>{
     const idx=parseInt(rad.dataset.i,10);
-    if(idx===i){
-      rad.classList.add('valgt');
-      const innerEl=rad.querySelector('.rad-inner');
-      const inner=rad.querySelector('.rad-utvid');
-      const målH=innerEl?innerEl.offsetHeight:0;
-      if(inner&&inner.animate){
-        inner.style.height='0px';inner.style.opacity='0';
-        requestAnimationFrame(()=>{
-          const anim=inner.animate(
-            [{height:'0px',opacity:0},{height:målH+'px',opacity:1}],
-            {duration:420,easing:'cubic-bezier(.22,1,.36,1)',fill:'forwards'}
-          );
-          anim.onfinish=()=>{
-            // Bare sett auto-høyde hvis denne raden fortsatt er den valgte
-            if(WIZ.åpen===idx){inner.style.height='auto';inner.style.opacity='1';}
-          };
-        });
-      }
-      if(rad.animate){
-        rad.animate(
-          [{transform:'scale(.98)',boxShadow:'0 4px 12px rgba(15,29,51,.08)'},{transform:'scale(1)',boxShadow:'0 24px 60px rgba(15,29,51,.25)'}],
-          {duration:420,easing:'cubic-bezier(.22,1,.36,1)',fill:'forwards'}
-        );
-      }
-    }else{
-      rad.classList.add('dimmet');
-    }
+    nullstillRad(rad);
+    if(idx===i){ rad.classList.add('valgt'); valgtRad=rad; }
+    else{ rad.classList.add('dimmet'); }
   });
+  // Scroll boblen pent til toppen så man slipper å scrolle selv.
+  // Radens egen topp flytter seg ikke når den utvider (den vokser nedover),
+  // så vi kan scrolle til den med en gang – jevnt, uten å vente på animasjonen.
+  if(valgtRad){
+    const top=valgtRad.getBoundingClientRect().top+window.scrollY-16;
+    window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+  }
 }
 
-// Lukker valgt rad: alle tilbake til normal størrelse med animasjon.
 function lukkRad(){
   const liste=document.getElementById('radListe');
   if(!liste||WIZ.åpen==null)return;
-  const gen=++animGen; // denne lukkingens generasjon
-  const valgt=liste.querySelector('.rad.valgt');
-  const inner=valgt&&valgt.querySelector('.rad-utvid');
-
-  const ferdig=()=>{
-    // Ignorer hvis en nyere handling har startet i mellomtiden
-    if(gen!==animGen)return;
-    liste.classList.remove('har-valgt');
-    liste.querySelectorAll('.rad').forEach(nullstillRad);
-    WIZ.åpen=null;
-  };
-
-  if(inner&&inner.animate){
-    const nåH=inner.offsetHeight;
-    inner.style.height=nåH+'px';inner.style.opacity='1';
-    requestAnimationFrame(()=>{
-      const anim=inner.animate(
-        [{height:nåH+'px',opacity:1},{height:'0px',opacity:0}],
-        {duration:340,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}
-      );
-      anim.onfinish=ferdig;
-    });
-  }else{
-    ferdig();
-  }
-  if(valgt&&valgt.animate){
-    valgt.animate(
-      [{boxShadow:'0 24px 60px rgba(15,29,51,.25)'},{boxShadow:'0 6px 16px rgba(15,29,51,.08)'}],
-      {duration:340,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}
-    );
-  }
+  WIZ.åpen=null;
+  // Fjern alle klasser synkront – CSS animerer høyden tilbake til 0
+  liste.classList.remove('har-valgt');
+  liste.querySelectorAll('.rad').forEach(nullstillRad);
 }
 
 // Åpner/lukker en rad. Kun én åpen om gangen, med animasjon.
