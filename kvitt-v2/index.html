@@ -1246,20 +1246,37 @@ function tegnRader(){
 }
 
 // Velger en rad: den løfter seg over de andre, resten dimmes/krymper bak.
+let animGen=0; // generasjonsteller – ignorerer utdaterte animasjons-callbacks
+
+// Setter en rad umiddelbart til lukket tilstand (ingen animasjon).
+function nullstillRad(rad){
+  if(!rad)return;
+  rad.classList.remove('valgt','dimmet');
+  const inner=rad.querySelector('.rad-utvid');
+  if(inner){inner.style.height='';inner.style.opacity='';}
+  rad.style.transform='';rad.style.boxShadow='';
+}
+
 function velgRad(i){
-  if(WIZ.åpen===i){lukkRad();return;}
-  WIZ.åpen=i;
   const liste=document.getElementById('radListe');
   if(!liste)return;
+  // Klikk på allerede åpen rad → lukk den
+  if(WIZ.åpen===i){lukkRad();return;}
+
+  animGen++; // ny handling – gjør gamle callbacks ugyldige
+  // Rydd ALLE rader umiddelbart (lukker en evt. tidligere åpen uten venting)
+  liste.querySelectorAll('.rad').forEach(nullstillRad);
+
+  WIZ.åpen=i;
   liste.classList.add('har-valgt');
+
   liste.querySelectorAll('.rad').forEach((rad)=>{
     const idx=parseInt(rad.dataset.i,10);
     if(idx===i){
       rad.classList.add('valgt');
-      // Mål naturlig høyde for smooth animasjon (tilpasset innhold)
+      const innerEl=rad.querySelector('.rad-inner');
       const inner=rad.querySelector('.rad-utvid');
-      // Web Animations API: animer fra 0 til auto-høyde
-      const målH=rad.querySelector('.rad-inner').offsetHeight;
+      const målH=innerEl?innerEl.offsetHeight:0;
       if(inner&&inner.animate){
         inner.style.height='0px';inner.style.opacity='0';
         requestAnimationFrame(()=>{
@@ -1267,10 +1284,12 @@ function velgRad(i){
             [{height:'0px',opacity:0},{height:målH+'px',opacity:1}],
             {duration:420,easing:'cubic-bezier(.22,1,.36,1)',fill:'forwards'}
           );
-          anim.onfinish=()=>{inner.style.height='auto';inner.style.opacity='1';};
+          anim.onfinish=()=>{
+            // Bare sett auto-høyde hvis denne raden fortsatt er den valgte
+            if(WIZ.åpen===idx){inner.style.height='auto';inner.style.opacity='1';}
+          };
         });
       }
-      // Løft-animasjon på selve kortet
       if(rad.animate){
         rad.animate(
           [{transform:'scale(.98)',boxShadow:'0 4px 12px rgba(15,29,51,.08)'},{transform:'scale(1)',boxShadow:'0 24px 60px rgba(15,29,51,.25)'}],
@@ -1281,37 +1300,40 @@ function velgRad(i){
       rad.classList.add('dimmet');
     }
   });
-  // Score-animasjon hvis Diagnose (ikke aktuelt her, men trygt)
-  if(document.getElementById('scoreNum')){scoreAnimert=false;animerScore();}
 }
 
 // Lukker valgt rad: alle tilbake til normal størrelse med animasjon.
 function lukkRad(){
   const liste=document.getElementById('radListe');
   if(!liste||WIZ.åpen==null)return;
+  const gen=++animGen; // denne lukkingens generasjon
   const valgt=liste.querySelector('.rad.valgt');
   const inner=valgt&&valgt.querySelector('.rad-utvid');
+
+  const ferdig=()=>{
+    // Ignorer hvis en nyere handling har startet i mellomtiden
+    if(gen!==animGen)return;
+    liste.classList.remove('har-valgt');
+    liste.querySelectorAll('.rad').forEach(nullstillRad);
+    WIZ.åpen=null;
+  };
+
   if(inner&&inner.animate){
     const nåH=inner.offsetHeight;
-    inner.style.height=nåH+'px';
-    const anim=inner.animate(
-      [{height:nåH+'px',opacity:1},{height:'0px',opacity:0}],
-      {duration:340,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}
-    );
-    anim.onfinish=()=>{
-      liste.classList.remove('har-valgt');
-      liste.querySelectorAll('.rad').forEach((r)=>r.classList.remove('valgt','dimmet'));
-      if(inner){inner.style.height='';inner.style.opacity='';}
-      WIZ.åpen=null;
-    };
+    inner.style.height=nåH+'px';inner.style.opacity='1';
+    requestAnimationFrame(()=>{
+      const anim=inner.animate(
+        [{height:nåH+'px',opacity:1},{height:'0px',opacity:0}],
+        {duration:340,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}
+      );
+      anim.onfinish=ferdig;
+    });
   }else{
-    liste.classList.remove('har-valgt');
-    liste.querySelectorAll('.rad').forEach((r)=>r.classList.remove('valgt','dimmet'));
-    WIZ.åpen=null;
+    ferdig();
   }
   if(valgt&&valgt.animate){
     valgt.animate(
-      [{transform:'scale(1)',boxShadow:'0 24px 60px rgba(15,29,51,.25)'},{transform:'scale(1)',boxShadow:'var(--sh)'}],
+      [{boxShadow:'0 24px 60px rgba(15,29,51,.25)'},{boxShadow:'0 6px 16px rgba(15,29,51,.08)'}],
       {duration:340,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}
     );
   }
