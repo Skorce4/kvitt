@@ -401,8 +401,36 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 /* ETT PANEL – ACCORDION */
 /* TO KOLONNER + FAST-HØYDE UTVIDING */
 .panel-to{display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start;max-width:1080px;margin:0 auto}
-@media(max-width:900px){.panel-to{grid-template-columns:1fr}}
+@media(max-width:900px){
+  .panel-to{grid-template-columns:1fr;gap:12px}
+  .panel-v,.panel-h{min-width:0;max-width:100%}
+}
 @media(min-width:901px){.panel-v{position:sticky;top:20px}}
+/* === MOBIL-OPTIMALISERING === */
+@media(max-width:560px){
+  html{scrollbar-gutter:auto}
+  .res-shell{padding:24px 0 20px}
+  .res-top{padding:0 4px}
+  /* Diagnose-kort + rader: mindre padding, tall som ikke sprenger */
+  .diag-hode,.rad-hode{gap:11px;padding:0 14px 0 18px;height:auto;min-height:68px;padding-top:12px;padding-bottom:12px}
+  .diag-body{padding:14px 14px 18px}
+  .acc-ic{min-width:32px;height:24px;font-size:11px}
+  .acc-tittel{font-size:9px}
+  .acc-tekst{font-size:13px;white-space:normal}
+  .acc-tall{font-size:16px}
+  .acc-pil{width:24px;height:24px}
+  .rad.valgt .rad-inner,.rad-inner{padding-left:14px;padding-right:14px}
+  /* Score-dashbord kompakt */
+  .dash-num{font-size:44px}
+  .dash-readout{padding:14px}
+  .dash-bars{gap:2px}
+  /* Innhold i utvidede faner */
+  .rad-inner h3,.diag-body h3{font-size:17px}
+  .pg-rad,.sim-row{font-size:13px}
+  /* Alt skal holde seg innenfor skjermen */
+  .panel-to,.panel-v,.panel-h,.diag-kort,.rad,.rad-inner{max-width:100%;box-sizing:border-box}
+  .rad-inner>*{max-width:100%;box-sizing:border-box}
+}
 /* Diagnose-kort venstre – lyst, matcher radene */
 .diag-kort{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
 .diag-kort::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85}
