@@ -390,6 +390,27 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .res-shell{max-width:680px;margin:0 auto;padding:40px 0 20px}
 .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .res-kicker{color:var(--ink3)}
+/* DASHBOARD-VISNING */
+.dash-score-wrap{margin-bottom:8px}
+.dash-kort-t{color:var(--ink3);margin:28px 0 14px;font-size:11px;letter-spacing:.14em}
+.dashkort-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:520px){.dashkort-grid{grid-template-columns:1fr}}
+.dashkort{position:relative;text-align:left;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);padding:20px;cursor:pointer;transition:transform .16s var(--ease),box-shadow .2s;display:flex;flex-direction:column;gap:4px;font-family:'Poppins',sans-serif}
+.dashkort:hover{transform:translateY(-3px);box-shadow:var(--sh-md)}
+.dashkort:active{transform:translateY(-1px)}
+.dk-ic{align-self:flex-start;min-width:30px;height:22px;padding:0 8px;border-radius:5px;display:inline-grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;background:var(--ink);color:#fff;letter-spacing:.05em;margin-bottom:8px}
+.dk-tittel{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.dk-tall{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;line-height:1.1}
+.dk-tekst{font-size:13px;color:var(--ink2);line-height:1.4}
+.dk-pil{position:absolute;top:20px;right:20px;font-size:18px;color:var(--ink3);transition:transform .16s}
+.dashkort:hover .dk-pil{transform:translateX(3px);color:var(--green)}
+.ny-sjekk-stor{width:100%;margin-top:24px;background:transparent;border:1.5px solid var(--line2);color:var(--navy);font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;padding:16px;border-radius:var(--r-pill);cursor:pointer;transition:.16s}
+.ny-sjekk-stor:hover{border-color:var(--navy);background:var(--paper)}
+/* SIDE-VISNING (enkelt steg) */
+.side-back{background:transparent;border:none;color:var(--green);font-family:'Poppins',sans-serif;font-weight:600;font-size:14px;padding:8px 0;margin-bottom:14px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.side-back:hover{color:var(--ink);transform:translateX(-3px)}
+.side-body{animation:sideIn .3s var(--ease)}
+@keyframes sideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .wizard-card{background:var(--surface);border:1px solid rgba(228,223,212,.6);border-radius:var(--r-xl);box-shadow:var(--sh-clay);padding:32px;min-height:380px;display:flex;flex-direction:column}
 .wizard-card .body{flex:1}
 .wizard-dots{display:flex;gap:7px;justify-content:center;margin-top:18px}
@@ -420,6 +441,19 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .tamed{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line2)}
 .tamed-t{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
 .tamedbtn{width:100%}
+.prisbanner{border-radius:var(--r-lg);padding:20px 22px;margin-bottom:18px;border:1px solid var(--line)}
+.prisbanner.ok{background:linear-gradient(180deg,#f0f9f3,#f7fbf8);border-color:#cce9d7}
+.prisbanner.warn{background:linear-gradient(180deg,#fdf6e9,#fdfaf3);border-color:#f0dcb8}
+.prisbanner .pb-din{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:var(--ink);margin-bottom:6px}
+.prisbanner p{margin:0;font-size:14px;line-height:1.55;color:var(--ink2)}
+.prisgraf{background:#fff;border:1px solid rgba(228,223,212,.6);border-radius:var(--r-lg);box-shadow:var(--sh);padding:4px 22px}
+.pg-rad{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
+.pg-rad:last-child{border-bottom:none}
+.pg-rad.hl{background:linear-gradient(90deg,rgba(55,196,111,.06),transparent);margin:0 -22px;padding-left:22px;padding-right:22px;border-radius:8px}
+.pg-lab{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.02em;color:var(--ink3);text-transform:uppercase}
+.pg-lab em{font-style:normal;color:var(--green);text-transform:none;letter-spacing:0;font-family:'Poppins',sans-serif;font-size:11px}
+.pg-val{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:var(--ink)}
+.pg-rad.hl .pg-val{color:var(--green);font-size:19px}
 .svveu{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid rgba(228,223,212,.6);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px}
 .svveu-i{background:var(--ink);padding:16px 18px;display:flex;flex-direction:column;gap:4px}
 .svveu-lab{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)}
@@ -819,13 +853,30 @@ async function analyze(){
     const regMatch=(r._text||text||'').match(/(?:reg\.?nr\.?|registreringsnummer|kjennemerke)[:\s]*([A-Z]{2}\s?\d{4,5}|[A-Z0-9]{2,7})/i);
     window.__vegvesen=null;window.__vegvesenTom=false;
     window.__vegvesenVenter=!!(regMatch&&regMatch[1]);
+    // Prissjekk: trekk pris + år fra annonseteksten (brukes til FINN-søk)
+    window.__pris=null;window.__prisTom=false;
+    const prisTxt=(r._text||text||'');
+    const egenPrisMatch=prisTxt.match(/(?:pris|koster)[:\s]*(\d[\d\s]{4,8})/i)||prisTxt.match(/(\d[\d\s]{4,8})\s*kr/i);
+    const egenPris=egenPrisMatch?parseInt(egenPrisMatch[1].replace(/\s/g,''),10):null;
+    const aarMatch=prisTxt.match(/\b(19|20)\d{2}\b/);
+    const aarTxt=aarMatch?aarMatch[0]:null;
+    window.__prisVenter=!!(aarTxt); // vi kan søke hvis vi iallfall har år (merke kommer fra vegvesen)
     render(r);bumpCounter();loadCounter();
     if(regMatch&&regMatch[1]){
       fetch('/api/kjoretoy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({regnr:regMatch[1]})})
         .then(async(vr)=>{const vd=await vr.json().catch(()=>({}));
-          if(vd&&vd.ok&&vd.data){window.__vegvesen=vd.data;window.__vegvesenVenter=false;oppdaterVegvesenSteg();}
-          else{window.__vegvesenVenter=false;window.__vegvesenTom=true;oppdaterVegvesenSteg();}
-        }).catch(()=>{window.__vegvesenVenter=false;window.__vegvesenTom=true;oppdaterVegvesenSteg();});
+          if(vd&&vd.ok&&vd.data){window.__vegvesen=vd.data;window.__vegvesenVenter=false;oppdaterVegvesenSteg();
+            // Prissjekk med presise data fra vegvesen
+            startPrissjekk(vd.data.merke,vd.data.modell,aarTxt||vd.data.forstegangRegistrertNorge,egenPris);
+          }
+          else{window.__vegvesenVenter=false;window.__vegvesenTom=true;oppdaterVegvesenSteg();
+            if(aarTxt)startPrissjekk(null,null,aarTxt,egenPris); // fallback uten vegvesen
+          }
+        }).catch(()=>{window.__vegvesenVenter=false;window.__vegvesenTom=true;oppdaterVegvesenSteg();
+          if(aarTxt)startPrissjekk(null,null,aarTxt,egenPris);});
+    } else if(aarTxt){
+      // Ingen reg.nr, men vi har år – prøv prissjekk med det vi kan finne i teksten
+      startPrissjekk(null,null,aarTxt,egenPris);
     }
     // Bakgrunnskall for annonsetekst, med banned-listen så ingen selvmotsigelse
     fetch('/api/analyser-tekst',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:r._text||text,banned:r.banned||[]})})
@@ -920,6 +971,39 @@ function render(r){
   const laster=r._laster;
   const spinner='<div class="tekstlaster"><span class="tspin"></span><span>Skriver forbedret tekst...</span></div>';
 
+  // Prissjekk mot FINN-markedet (kun hvis vi har nok bil-data til søk)
+  if(window.__prisVenter||window.__pris){
+    steps.push({label:'Pris',render:()=>{
+      const p=window.__pris;
+      const head='<div class="step-eyebrow lbl"><span class="ic">KR</span>Pris mot markedet</div>'+
+        '<h3>Ligger prisen din riktig?</h3>';
+      if(window.__prisTom){
+        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN til å gi et pålitelig markedsbilde. Dette skjer for sjeldne modeller eller når annonsen mangler pris/år.</p>';
+      }
+      if(!p){
+        return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
+      }
+      const kr=(n)=>n?n.toLocaleString('nb-NO')+' kr':'–';
+      // Vurderingsbanner hvis egen pris finnes
+      let banner='';
+      if(p.vurdering&&p.egenPris){
+        const tekst=p.vurdering==='over'?'Prisen din ligger over markedssnittet. Vurder om km, utstyr eller tilstand forsvarer det – ellers kan den bli stående.':
+          p.vurdering==='under'?'Prisen din ligger under de billigste seriøse annonsene. Du kan sannsynligvis ta mer.':
+          'Prisen din ligger midt i markedet – godt plassert for et raskt, trygt salg.';
+        const farge=p.vurdering==='over'?'warn':p.vurdering==='under'?'ok':'ok';
+        banner='<div class="prisbanner '+farge+'"><div class="pb-din">Din pris: '+kr(p.egenPris)+'</div><p>'+tekst+'</p></div>';
+      }
+      return head+'<p class="lead">Basert på '+p.antall+' sammenlignbare biler på FINN (vrak og skadede filtrert bort).</p>'+
+        banner+
+        '<div class="prisgraf">'+
+          '<div class="pg-rad"><span class="pg-lab">Billigste seriøse</span><span class="pg-val">'+kr(p.lavest)+'</span></div>'+
+          '<div class="pg-rad hl"><span class="pg-lab">Nedre klynge <em>(her konkurrerer du)</em></span><span class="pg-val">'+kr(p.nedreKlynge)+'</span></div>'+
+          '<div class="pg-rad"><span class="pg-lab">Markedssnitt</span><span class="pg-val">'+kr(p.snitt)+'</span></div>'+
+          '<div class="pg-rad"><span class="pg-lab">Høyeste</span><span class="pg-val">'+kr(p.høyest)+'</span></div>'+
+        '</div>'+
+        '<p class="simnote">Markedsverdien ligger nær den nedre klyngen – det er dit kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>';
+    }});
+  }
   // Offisielle data fra Statens vegvesen (kun hvis reg.nr fantes i teksten)
   if(window.__vegvesenVenter||window.__vegvesen){
     steps.push({label:'Offisielt',render:()=>{
@@ -1013,18 +1097,103 @@ function render(r){
 
   WIZ.steps=steps;
 
+  // Bygg kort-sammendrag for dashboardet (tall + kort tekst per steg).
+  // Score-steget (indeks 0) er selve dashboard-headeren, ikke et kort.
+  byggKortdata(r);
+
   const box=document.getElementById('results');
   box.innerHTML=
     '<div class="res-shell">'+
       '<div class="res-top"><span class="res-kicker lbl">Din analyse</span><button class="restart" style="margin:0;padding:9px 16px" onclick="resetTool()">← Ny sjekk</button></div>'+
-      '<div class="wizard-card"><div class="body" id="wizBody"></div>'+
-        '<div class="wizard-dots" id="wizDots"></div>'+
-        '<div class="wizard-nav" id="wizNav"></div>'+
-      '</div>'+
+      '<div class="dash-view" id="dashView"></div>'+
     '</div>';
   box.classList.add('on');
-  drawStep();
+  visDashboard();
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// Bygger kort-sammendrag (tall + kort beskrivelse) for hvert steg unntatt score.
+function byggKortdata(r){
+  WIZ.steps.forEach((s)=>{
+    if(s.label==='Diagnose'){ s.kort=null; return; } // dashboard-header, ikke kort
+    if(s.label==='Risiko i kroner'){
+      const rk=r.reklamasjon||{};
+      const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('nb-NO')+' kr':'Lav';
+      s.kort={ic:'02',tittel:'Reklamasjonsrisiko',tall:kr,tekst:rk.utfall||'Se detaljer',farge:/heving/i.test(rk.utfall||'')?RED:/prisavslag/i.test(rk.utfall||'')?AMBER:GREEN};
+    }
+    else if(s.label==='Pris'){
+      s.kort={ic:'KR',tittel:'Pris mot markedet',tall:()=>{const p=window.__pris;return p?p.nedreKlynge.toLocaleString('nb-NO')+' kr':(window.__prisVenter?'...':'–');},tekst:()=>{const p=window.__pris;return p?(p.vurdering==='over'?'Du ligger over markedet':p.vurdering==='under'?'Du kan ta mer':'Markedsriktig pris'):(window.__prisVenter?'Henter priser':'Ikke nok data');},farge:GREEN};
+    }
+    else if(s.label==='Offisielt'){
+      s.kort={ic:'SVV',tittel:'Offisielle data',tall:()=>{const v=window.__vegvesen;return v?(v.merke||'Funnet'):(window.__vegvesenVenter?'...':'–');},tekst:()=>{const v=window.__vegvesen;return v?'Bekreftet hos vegvesen':(window.__vegvesenVenter?'Henter data':'Ingen reg.nr');},farge:GREEN};
+    }
+    else if(s.label==='Modellsjekk'){
+      const n=(r.modellsjekk||[]).length;
+      s.kort={ic:'MOD',tittel:'Modellsjekk',tall:n+' punkter',tekst:'Kjente svakheter',farge:AMBER};
+    }
+    else if(s.label==='Forbehold'){
+      s.kort={ic:'03',tittel:'Forbeholdstekst',tall:'Klar',tekst:'Juridisk trygg tekst',farge:GREEN};
+    }
+    else if(s.label==='Bedre annonse'){
+      s.kort={ic:'04',tittel:'Bedre annonse',tall:()=>window.__analyse&&window.__analyse.nyScore?('→ '+window.__analyse.nyScore):'Klar',tekst:'Forbedret annonsetekst',farge:GREEN};
+    }
+    else if(s.label==='Spørsmål'){
+      s.kort={ic:'05',tittel:'Spørsmål fra kjøper',tall:()=>{const q=window.__analyse&&window.__analyse.questions;return q&&q.length?q.length+' stk':'Klar';},tekst:'Vær forberedt',farge:GREEN};
+    }
+    else { s.kort={ic:'•',tittel:s.label,tall:'Se',tekst:'',farge:GREEN}; }
+  });
+}
+
+// Viser dashboardet: score øverst + rutenett av klikkbare kort + ny-sjekk nederst.
+function visDashboard(){
+  WIZ.visning='dash';
+  const s0=WIZ.steps[0];
+  const scoreHtml=s0.render?s0.render():s0.html;
+  const val=(x)=>typeof x==='function'?x():x;
+  const kort=WIZ.steps.map((s,i)=>{
+    if(!s.kort)return '';
+    return '<button class="dashkort" onclick="åpneSide('+i+')">'+
+      '<span class="dk-ic">'+s.kort.ic+'</span>'+
+      '<span class="dk-tittel">'+esc(s.kort.tittel)+'</span>'+
+      '<span class="dk-tall" style="color:'+(s.kort.farge||'#0f1d33')+'">'+esc(String(val(s.kort.tall)))+'</span>'+
+      '<span class="dk-tekst">'+esc(String(val(s.kort.tekst)))+'</span>'+
+      '<span class="dk-pil">→</span>'+
+      '</button>';
+  }).join('');
+  document.getElementById('dashView').innerHTML=
+    '<div class="dash-score-wrap">'+scoreHtml+'</div>'+
+    '<div class="dash-kort-t lbl">Utforsk analysen</div>'+
+    '<div class="dashkort-grid">'+kort+'</div>'+
+    '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>';
+  animerScore();
+}
+
+// Åpner en enkelt "side" (steg) med tilbake-knapp til dashboardet.
+function åpneSide(i){
+  WIZ.i=i;WIZ.visning='side';
+  const s=WIZ.steps[i];
+  const innhold=s.render?s.render():s.html;
+  document.getElementById('dashView').innerHTML=
+    '<div class="side-shell">'+
+      '<button class="side-back" onclick="visDashboard()">← Tilbake til oversikt</button>'+
+      '<div class="wizard-card"><div class="side-body">'+innhold+'</div></div>'+
+      '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>'+
+    '</div>';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function animerScore(){
+  const score=WIZ.score, col=WIZ.col;
+  const bw=document.getElementById('dashBars');
+  if(bw){bw.innerHTML='';for(let i=0;i<20;i++)bw.appendChild(document.createElement('i'));}
+  setTimeout(()=>{
+    let cur=0;const t=setInterval(()=>{
+      cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}
+      const sn=document.getElementById('scoreNum');if(sn)sn.textContent=cur;
+      if(bw){const lit=Math.round(20*cur/100);[...bw.children].forEach((b,i)=>{b.style.background=i<lit?col:'rgba(255,255,255,.08)';b.style.boxShadow=i<lit?('0 0 5px '+col+'99'):'none';});}
+    },26);
+    if(score>80)setTimeout(confetti,500);
+  },300);
 }
 
 function docBox(id,kicker,txt){
@@ -1041,44 +1210,35 @@ function toggleMer(id){
   b.firstChild.textContent=open?'Vis mindre ':'Les mer ';
 }
 
-function drawStep(dir){
-  const s=WIZ.steps[WIZ.i];
-  const cls=dir===1?'wstep in-right':dir===-1?'wstep in-left':'wstep';
-  const innhold=s.render?s.render():s.html;
-  document.getElementById('wizBody').innerHTML='<div class="'+cls+'">'+innhold+'</div>';
-  document.getElementById('wizDots').innerHTML=WIZ.steps.map((x,i)=>'<span class="wizard-dot '+(i===WIZ.i?'on':(i<WIZ.i?'done':''))+'"></span>').join('');
-  const last=WIZ.i===WIZ.steps.length-1;
-  let nav='';
-  if(WIZ.i>0)nav+='<button class="back" onclick="wizGo(-1)">Tilbake</button>';
-  nav+='<button class="fwd" onclick="'+(last?'resetTool()':'wizGo(1)')+'">'+(last?'Ferdig – sjekk en ny ✓':'Videre →')+'</button>';
-  document.getElementById('wizNav').innerHTML=nav;
-  if(WIZ.i===0){
-    const score=WIZ.score, col=WIZ.col;
-    const bw=document.getElementById('dashBars');
-    if(bw){bw.innerHTML='';for(let i=0;i<20;i++)bw.appendChild(document.createElement('i'));}
-    setTimeout(()=>{
-      let cur=0;const t=setInterval(()=>{
-        cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}
-        const sn=document.getElementById('scoreNum');if(sn)sn.textContent=cur;
-        if(bw){const lit=Math.round(20*cur/100);[...bw.children].forEach((b,i)=>{b.style.background=i<lit?col:'rgba(255,255,255,.08)';b.style.boxShadow=i<lit?('0 0 5px '+col+'99'):'none';});}
-      },26);
-      if(score>80)setTimeout(confetti,500);
-    },300);
+// Re-tegner gjeldende visning når bakgrunnsdata (tekst/pris/vegvesen) lander.
+function oppdaterVisning(){
+  if(WIZ.visning==='dash')visDashboard();
+  else if(WIZ.visning==='side')åpneSide(WIZ.i);
+}
+// Kalles når bakgrunns-tekstkallet er ferdig. Oppdaterer dashboard-kort
+// eller den åpne siden slik at nye data (tekst, nyScore) vises.
+function oppdaterTekstSteg(){ oppdaterVisning(); }
+function startPrissjekk(merke,modell,aar,egenPris){
+  // Hvis merke mangler (ingen vegvesen), prøv å trekke fra annonseteksten
+  const a=window.__analyse||{};
+  const txt=(a._text||'');
+  if(!merke){
+    // Vanlige bilmerker – enkelt uttrekk fra tekst
+    const mm=txt.match(/\b(Volkswagen|VW|Audi|BMW|Mercedes|Toyota|Volvo|Tesla|Skoda|Ford|Peugeot|Nissan|Kia|Hyundai|Mazda|Honda|Opel|Renault|Citroen|Porsche|Golf|Passat|Tiguan)\b/i);
+    if(mm)merke=mm[1];
   }
+  const aarNum=aar?String(aar).match(/(19|20)\d{2}/):null;
+  if(!merke||!aarNum){window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();return;}
+  window.__prisVenter=true;oppdaterVisning();
+  fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris})})
+    .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
+      if(pd&&pd.ok&&pd.antall>=3){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
+      else{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();}
+    }).catch(()=>{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();});
 }
-// Kalles når bakgrunns-tekstkallet er ferdig. Tegner steget på nytt kun hvis
-// brukeren står på et tekst-steg (indeks >= antall diagnose-steg).
-function oppdaterTekstSteg(){
-  if(!WIZ.steps.length)return;
-  const s=WIZ.steps[WIZ.i];
-  if(s&&s.render)drawStep(); // bare dynamiske steg trenger re-render
-}
-function oppdaterVegvesenSteg(){
-  if(!WIZ.steps.length)return;
-  const s=WIZ.steps[WIZ.i];
-  if(s&&s.render&&s.label==='Offisielt')drawStep();
-}
-function wizGo(d){const prev=WIZ.i;WIZ.i=Math.max(0,Math.min(WIZ.steps.length-1,WIZ.i+d));if(WIZ.i===prev)return;drawStep(d);}
+function oppdaterPrisSteg(){ oppdaterVisning(); }
+function oppdaterVegvesenSteg(){ oppdaterVisning(); }
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
 function toggleMail(){
   const box=document.getElementById('mailBox');
