@@ -387,11 +387,33 @@ body.sub-reklamasjon #page-reklamasjon{display:block}
 body.result-mode .landing{display:none!important}
 body.result-mode #inputPanel{display:none!important}
 body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
-.res-shell{max-width:680px;margin:0 auto;padding:40px 0 20px}
+.res-shell{max-width:1080px;margin:0 auto;padding:40px 0 20px}
+@media(max-width:900px){.res-shell{max-width:680px}}
 .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .res-kicker{color:var(--ink3)}
 /* ETT PANEL – ACCORDION */
-.panel-ett{max-width:680px;margin:0 auto}
+.panel-ett{display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start;max-width:1080px;margin:0 auto}
+@media(max-width:900px){.panel-ett{grid-template-columns:1fr}}
+@media(min-width:901px){.panel-venstre{position:sticky;top:20px}}
+/* Diagnose-kort: lyst, matcher accordion-radene */
+.diag-kort{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
+.diag-kort::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--diag-farge,var(--green));opacity:.85}
+.diag-hode{display:flex;align-items:center;gap:16px;padding:0 22px 0 26px;height:76px;border-bottom:1px solid var(--line)}
+.diag-innhold{padding:18px 22px 22px}
+/* Lys overstyring av dashboard inne i diag-kortet */
+.diag-innhold .dashboard{background:none;border:none;box-shadow:none;padding:0;margin:0}
+.diag-innhold .dash-readout{background:var(--paper);border:1px solid var(--line);border-radius:14px}
+.diag-innhold .dash-rmeta .dlab{color:var(--ink3)}
+.diag-innhold .dash-rmeta .dstatus{color:var(--ink)}
+.diag-innhold .dash-bars i{background:rgba(15,29,51,.1)}
+.diag-innhold .dash-blurb{color:var(--ink2)}
+.diag-innhold .dash-kroner{background:var(--paper);color:var(--ink2)}
+.diag-innhold .dash-lamps-t{color:var(--ink3)}
+.diag-innhold .dlamp{background:#fff;border:1px solid var(--line)}
+.diag-innhold .dlamp .db b{color:var(--ink)}
+.diag-innhold .dlamp .db span{color:var(--ink2)}
+.diag-innhold .delknapp{background:var(--paper);border:1px solid var(--line2);color:var(--navy)}
+.diag-innhold .delknapp:hover{background:var(--green-light)}
 .acc-liste{display:flex;flex-direction:column;gap:10px}
 .acc-rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .22s var(--ease),transform .16s var(--ease),border-color .2s}
 .acc-rad:hover{box-shadow:var(--sh-md);transform:translateY(-2px);border-color:rgba(228,223,212,1)}
@@ -906,7 +928,7 @@ function render(r){
   setLoading(false);
   document.body.classList.add('result-mode');
   const score=Math.max(0,Math.min(100,r.score)),col=colorFor(score);
-  WIZ.score=score;WIZ.col=col;WIZ.i=0;WIZ.åpen=0;
+  WIZ.score=score;WIZ.col=col;WIZ.i=0;WIZ.åpen=null;WIZ.label=r.label;
 
   const flags=(r.flags||[]).map((f)=>{const sym=f.level==='ok'?'✓':f.level==='warn'?'!':'×';return '<div class="finding"><span class="mk '+f.level+'">'+sym+'</span><div><b>'+esc(f.title)+'</b><p>'+esc(f.detail)+'</p></div></div>';}).join('');
   const qs=(r.questions||[]).map((q,i)=>'<div class="qrow"><span class="qn">'+(i+1)+'</span><div><b>'+esc(q.q)+'</b><p>'+esc(q.why)+'</p></div></div>').join('');
@@ -981,7 +1003,8 @@ function render(r){
             'har JSON-LD: '+dbg.harJsonLd+' | NextData: '+dbg.harNextData+'\n'+
             'antall parset: '+(dbg.antallParsed||0)+'\n\n'+
             '<b style="color:#f4d23c">JSON-LD blokker:</b>\n'+esc(JSON.stringify(dbg.ldBlokker||[],null,1))+'\n\n'+
-            '<b style="color:#f4d23c">price-kontekst:</b>\n'+esc(JSON.stringify(dbg.priceKontekst||[],null,1))+'</div>';
+            '<b style="color:#f4d23c">price-kontekst:</b>\n'+esc(JSON.stringify(dbg.priceKontekst||[],null,1))+'\n\n'+
+            '<b style="color:#f4d23c">Alle rå priser funnet:</b>\n'+esc((dbg.alleRåPriser||[]).join('\n'))+'</div>';
         }
         return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN.</p>'+dbgHtml;
       }
@@ -1006,7 +1029,8 @@ function render(r){
           '<div class="pg-rad"><span class="pg-lab">Markedssnitt</span><span class="pg-val">'+kr(p.snitt)+'</span></div>'+
           '<div class="pg-rad"><span class="pg-lab">Høyeste</span><span class="pg-val">'+kr(p.høyest)+'</span></div>'+
         '</div>'+
-        '<p class="simnote">Markedsverdien ligger nær den nedre klyngen – det er dit kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>';
+        '<p class="simnote">Markedsverdien ligger nær den nedre klyngen – det er dit kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>'+
+        (window.__prisDebug&&window.__prisDebug.alleRåPriser?'<div style="margin-top:14px;padding:14px;background:#0f1d33;border-radius:10px;font-family:monospace;font-size:11px;color:#9fb0c4;line-height:1.6;white-space:pre-wrap"><b style="color:#37c46f">DEBUG – alle rå priser (midlertidig):</b>\n'+esc(window.__prisDebug.alleRåPriser.join('\n'))+'</div>':'');
     }});
   }
   // Offisielle data fra Statens vegvesen (kun hvis reg.nr fantes i teksten)
@@ -1120,10 +1144,7 @@ function render(r){
 // Bygger kort-sammendrag (tall + kort beskrivelse) for hver accordion-rad.
 function byggKortdata(r){
   WIZ.steps.forEach((s)=>{
-    if(s.label==='Diagnose'){
-      s.kort={ic:'01',tittel:'Trygghetsdiagnose',tall:()=>String(WIZ.score),tekst:r.label||'Se detaljer',farge:WIZ.col};
-      return;
-    }
+    if(s.label==='Diagnose'){ s.kort=null; return; } // vises i venstre kolonne, ikke rad
     if(s.label==='Risiko i kroner'){
       const rk=r.reklamasjon||{};
       const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('nb-NO')+' kr':'Lav';
@@ -1152,14 +1173,25 @@ function byggKortdata(r){
   });
 }
 
-// Viser ETT panel: alle steg som accordion-rader i én kolonne (score først).
+// Viser to kolonner: 01 Diagnose fast til venstre, accordion-rader til høyre.
 function visPanel(){
+  const s0=WIZ.steps[0];
+  const scoreHtml=s0.render?s0.render():s0.html;
   document.getElementById('dashView').innerHTML=
     '<div class="panel-ett">'+
-      '<div class="acc-liste" id="accListe"></div>'+
-      '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>'+
+      '<div class="panel-venstre">'+
+        '<div class="diag-kort" style="--diag-farge:'+WIZ.col+'">'+
+          '<div class="diag-hode"><span class="acc-ic">01</span><span class="acc-midt"><span class="acc-tittel">Trygghetsdiagnose</span><span class="acc-tekst">'+esc(WIZ.label||'')+'</span></span><span class="acc-tall" style="color:'+WIZ.col+'">'+WIZ.score+'</span></div>'+
+          '<div class="diag-innhold">'+scoreHtml+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="panel-hoyre">'+
+        '<div class="acc-liste" id="accListe"></div>'+
+        '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>'+
+      '</div>'+
     '</div>';
   tegnAccordion();
+  if(document.getElementById('scoreNum'))animerScore();
 }
 
 // Tegner KUN accordion-radene (score røres ikke, så den re-animeres ikke).
