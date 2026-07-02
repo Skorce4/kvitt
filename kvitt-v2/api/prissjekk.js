@@ -36,51 +36,13 @@ export default async function handler(req, res) {
     const html = await hentViaZyte(sokUrl, zyteKey);
     if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN." });
 
-    // Debug: vis hva vi faktisk fikk, så vi kan fikse parsingen
-    if (req.body && req.body.debug === true) {
-      const harNext = /__NEXT_DATA__/.test(html);
-      const harLd = /application\/ld\+json/.test(html);
-      const prisTreff = (html.match(/(\d[\d\s\u00a0]{4,8})\s*kr/gi) || []).slice(0, 10);
-      const annonser = parseSokeresultat(html);
-
-      // Hent JSON-LD-blokkene og vis strukturen (nøkler + type) for feilsøking
-      const ldBlokker = [];
-      const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
-      for (const m of ldMatches.slice(0, 5)) {
-        try {
-          const d = JSON.parse(m[1].trim());
-          ldBlokker.push({
-            type: d["@type"] || (Array.isArray(d) ? "Array[" + d.length + "]" : "?"),
-            nøkler: Array.isArray(d) ? ("array av " + d.length) : Object.keys(d).slice(0, 15),
-            harItemList: !!d.itemListElement,
-            itemListLengde: d.itemListElement ? d.itemListElement.length : 0,
-            førsteItem: d.itemListElement && d.itemListElement[0] ? JSON.stringify(d.itemListElement[0]).slice(0, 400) : null,
-          });
-        } catch (e) { ldBlokker.push({ parseFeil: String(e).slice(0, 80) }); }
-      }
-
-      // Finn __NEXT_DATA__ eller andre store JSON-blokker med "price" i seg
-      const priceKontekst = [];
-      const priceIdx = html.indexOf('"price"');
-      if (priceIdx > -1) priceKontekst.push(html.slice(priceIdx - 40, priceIdx + 200));
-      const amountIdx = html.indexOf('"amount"');
-      if (amountIdx > -1) priceKontekst.push(html.slice(amountIdx - 60, amountIdx + 140));
-
-      return res.status(200).json({
-        ok: true, debug: true, sokUrl, htmlLengde: html.length,
-        harNextData: harNext, harJsonLd: harLd,
-        prisTreffITekst: prisTreff, antallParsed: annonser.length,
-        ldBlokker, priceKontekst,
-        alleRåPriser: hentOffers(html).slice(0, 30).map((a) => a.pris + " | " + a.tittel),
-      });
-    }
-
     const annonser = parseSokeresultat(html);
     if (annonser.length < 3) {
       return res.status(200).json({ ok: false, grunn: "For få sammenlignbare biler funnet.", antall: annonser.length });
     }
 
-    const analyse = analyserPriser(annonser, egenPris);
+    const kmForAnalyse = egenKm ? parseInt(String(egenKm).replace(/\D/g, ""), 10) : null;
+    const analyse = analyserPriser(annonser, egenPris, kmForAnalyse);
     return res.status(200).json({ ok: true, ...analyse });
   } catch (e) {
     console.error("Prissjekk feilet:", e);
@@ -157,15 +119,11 @@ function hentOffers(html) {
   const ut = [];
   const sett = new Set();
 
-  // Match price + priceCurrency NOK + name, i begge escape-former.
-  // Vi leter etter price-verdien og det tilhørende name-feltet i samme offers-blokk.
-  // Regex fanger: price (tall), og name (tekst) som følger kort etter i samme objekt.
+  // Match price + name, i begge escape-former. Vi fanger også km (mileage) hvis
+  // det står i nærheten av samme annonse-objekt, for km-vekting.
   const patterns = [
-    // Escaped: \"price\":\"31941\" ... \"name\":\"Subaru XV\"
     /\\"price\\":\\"(\d{4,7})\\"[\s\S]{0,300}?\\"name\\":\\"([^\\"]{3,60})\\"/g,
-    // Ren: "price":"31941" ... "name":"Subaru XV"
     /"price":"(\d{4,7})"[\s\S]{0,300}?"name":"([^"]{3,60})"/g,
-    // Pris som tall uten anførselstegn: "price":31941 ... "name":"..."
     /"price":(\d{4,7})[\s\S]{0,300}?"name":"([^"]{3,60})"/g,
   ];
 
@@ -175,11 +133,16 @@ function hentOffers(html) {
       const pris = parseInt(m[1], 10);
       const tittel = (m[2] || "").replace(/\\u[\dA-Fa-f]{4}/g, "").trim();
       if (pris >= 15000 && pris <= 3000000) {
+        // Let etter km/mileage i et vindu rundt treffet (±400 tegn)
+        const start = Math.max(0, m.index - 200);
+        const vindu = html.slice(start, m.index + 400);
+        const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i) || vindu.match(/(\d{4,7})\s*km/i);
+        const km = kmMatch ? parseInt(kmMatch[1], 10) : null;
         const nokkel = pris + "|" + tittel.slice(0, 20);
-        if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: null }); }
+        if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km < 999999) ? km : null }); }
       }
     }
-    if (ut.length >= 3) break; // fant nok med dette mønsteret
+    if (ut.length >= 3) break;
   }
   return ut;
 }
@@ -206,7 +169,8 @@ function dyptSokEtterAnnonser(obj, ut = [], dybde = 0) {
 }
 
 // Kjernelogikk: filtrer vrak/uteliggere, regn ut nedre klynge + snitt.
-function analyserPriser(annonser, egenPris) {
+// egenKm: hvis oppgitt, vektes biler nærmest i km-stand (innen 10k) tyngst.
+function analyserPriser(annonser, egenPris, egenKm) {
   // Dedupliser på pris+tittel
   const unike = [];
   const sett = new Set();
@@ -220,39 +184,54 @@ function analyserPriser(annonser, egenPris) {
   let rene = unike.filter((a) => !vrakord.test(a.tittel || ""));
 
   // 2) Fjern statistiske uteliggere (urealistisk lave = sannsynlig vrak/feil)
-  //    Bruk median og IQR – robust mot ekstremer.
   const priser = rene.map((a) => a.pris).sort((x, y) => x - y);
   if (priser.length >= 4) {
     const q1 = persentil(priser, 25);
     const q3 = persentil(priser, 75);
     const iqr = q3 - q1;
-    const nedreGrense = q1 - 1.5 * iqr; // klassisk outlier-grense
+    const nedreGrense = q1 - 1.5 * iqr;
     rene = rene.filter((a) => a.pris >= Math.max(nedreGrense, 15000));
   }
 
-  const reneP = rene.map((a) => a.pris).sort((x, y) => x - y);
-  if (reneP.length < 3) {
-    return { antall: reneP.length, forFå: true };
+  if (rene.length < 3) return { antall: rene.length, forFå: true };
+
+  // 3) Km-vekting: hvis vi kjenner selgerens km og noen biler har km-data,
+  //    lag en delmengde av biler nærmest i km-stand (innen 10 000 km).
+  //    Markedsverdien baseres på DENNE gruppen hvis den er stor nok, siden
+  //    en bil med lik km-stand er mest sammenlignbar.
+  let kmNære = null;
+  const medKm = rene.filter((a) => a.km && a.km > 0);
+  if (egenKm && egenKm > 0 && medKm.length >= 3) {
+    kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 10000);
+    // Utvid vinduet trinnvis hvis for få innen 10k
+    if (kmNære.length < 3) kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 20000);
+    if (kmNære.length < 3) kmNære = medKm.filter((a) => Math.abs(a.km - egenKm) <= 35000);
+    if (kmNære.length < 3) kmNære = null; // ga opp – bruk hele settet
   }
 
-  // 3) Regn ut markedsbilde
-  const snitt = Math.round(reneP.reduce((s, p) => s + p, 0) / reneP.length);
-  const median = Math.round(persentil(reneP, 50));
-  const nedreKlynge = Math.round(persentil(reneP, 25)); // nedre 25% – billigste seriøse
-  const lavest = reneP[0];
-  const høyest = reneP[reneP.length - 1];
+  // Grunnlaget for markedsbildet: km-nære biler hvis vi har dem, ellers alle rene.
+  const grunnlag = (kmNære && kmNære.length >= 3) ? kmNære : rene;
+  const gP = grunnlag.map((a) => a.pris).sort((x, y) => x - y);
 
-  // 4) Vurder selgerens egen pris mot markedet (hvis oppgitt)
+  const snitt = Math.round(gP.reduce((s, p) => s + p, 0) / gP.length);
+  const median = Math.round(persentil(gP, 50));
+  const nedreKlynge = Math.round(persentil(gP, 25));
+  const lavest = gP[0];
+  const høyest = gP[gP.length - 1];
+
+  // 4) Vurder selgerens egen pris mot markedet
   let vurdering = null;
   if (egenPris && egenPris > 0) {
     const p = Number(egenPris);
-    if (p > snitt * 1.1) vurdering = "over";        // >10% over snitt
-    else if (p < nedreKlynge) vurdering = "under";  // under nedre klynge
-    else vurdering = "riktig";                       // innenfor markedet
+    if (p > snitt * 1.1) vurdering = "over";
+    else if (p < nedreKlynge) vurdering = "under";
+    else vurdering = "riktig";
   }
 
   return {
-    antall: reneP.length,
+    antall: grunnlag.length,
+    antallTotalt: rene.length,
+    kmVektet: !!(kmNære && kmNære.length >= 3),
     lavest, høyest, snitt, median, nedreKlynge,
     egenPris: egenPris ? Number(egenPris) : null,
     vurdering,
