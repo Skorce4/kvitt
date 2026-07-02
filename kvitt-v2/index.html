@@ -382,8 +382,8 @@ body.sub-reklamasjon #page-reklamasjon{display:block}
 .backlink:hover{background:rgba(255,255,255,.14);transform:translateX(-2px)}
 .backlink svg{width:15px;height:15px}
 /* Ordbytt-animasjon i hero: ord glir mykt inn/ut */
-.ordbytt{display:inline-block;transition:opacity .5s ease,transform .5s ease;will-change:opacity,transform}
-.ordbytt.ut{opacity:0;transform:translateY(-8px)}
+.ordbytt{display:inline-block;transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1);will-change:opacity,transform}
+.ordbytt.ut{opacity:0;transform:translateY(-14px)}
 .subpage-hero .sp-eyebrow{color:var(--green-bright);margin-bottom:14px;display:inline-flex;align-items:center;gap:9px}
 .subpage-hero .sp-eyebrow::before{content:'';width:24px;height:1px;background:rgba(55,196,111,.5)}
 .subpage-hero h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(28px,5vw,44px);line-height:1.08;letter-spacing:-1px;margin-bottom:14px;max-width:680px}
@@ -878,13 +878,15 @@ lineField(document.getElementById('heroCv'),'#37c46f',{count:26,alBoost:1.6});
   const synonymer=['Slipp','Unngå','Slipp'];
   let i=0;
   setInterval(()=>{
-    el.classList.add('ut');            // fade ut
+    el.classList.add('ut');            // start fade ut (700ms)
     setTimeout(()=>{
       i=(i+1)%synonymer.length;
-      el.textContent=synonymer[i];
-      el.classList.remove('ut');       // fade inn nytt ord
-    },500);
-  },3200);
+      el.textContent=synonymer[i];     // bytt tekst mens elementet er usynlig
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        el.classList.remove('ut');     // fade inn nytt ord (700ms)
+      }));
+    },720);                            // litt over 700ms så fade-ut er helt ferdig
+  },3800);
 })();
 // Hvorfor-seksjon: start animasjon først når den scrolles i syne (ytelse)
 (function(){
