@@ -36,18 +36,37 @@ export default async function handler(req, res) {
     if (req.body && req.body.debug === true) {
       const harNext = /__NEXT_DATA__/.test(html);
       const harLd = /application\/ld\+json/.test(html);
-      const prisTreff = (html.match(/(\d[\d\s]{4,8})\s*kr/gi) || []).slice(0, 10);
+      const prisTreff = (html.match(/(\d[\d\s\u00a0]{4,8})\s*kr/gi) || []).slice(0, 10);
       const annonser = parseSokeresultat(html);
+
+      // Hent JSON-LD-blokkene og vis strukturen (nøkler + type) for feilsøking
+      const ldBlokker = [];
+      const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+      for (const m of ldMatches.slice(0, 5)) {
+        try {
+          const d = JSON.parse(m[1].trim());
+          ldBlokker.push({
+            type: d["@type"] || (Array.isArray(d) ? "Array[" + d.length + "]" : "?"),
+            nøkler: Array.isArray(d) ? ("array av " + d.length) : Object.keys(d).slice(0, 15),
+            harItemList: !!d.itemListElement,
+            itemListLengde: d.itemListElement ? d.itemListElement.length : 0,
+            førsteItem: d.itemListElement && d.itemListElement[0] ? JSON.stringify(d.itemListElement[0]).slice(0, 400) : null,
+          });
+        } catch (e) { ldBlokker.push({ parseFeil: String(e).slice(0, 80) }); }
+      }
+
+      // Finn __NEXT_DATA__ eller andre store JSON-blokker med "price" i seg
+      const priceKontekst = [];
+      const priceIdx = html.indexOf('"price"');
+      if (priceIdx > -1) priceKontekst.push(html.slice(priceIdx - 40, priceIdx + 200));
+      const amountIdx = html.indexOf('"amount"');
+      if (amountIdx > -1) priceKontekst.push(html.slice(amountIdx - 60, amountIdx + 140));
+
       return res.status(200).json({
-        ok: true,
-        debug: true,
-        sokUrl,
-        htmlLengde: html.length,
-        harNextData: harNext,
-        harJsonLd: harLd,
-        prisTreffITekst: prisTreff,
-        antallParsed: annonser.length,
-        førstePar: annonser.slice(0, 5),
+        ok: true, debug: true, sokUrl, htmlLengde: html.length,
+        harNextData: harNext, harJsonLd: harLd,
+        prisTreffITekst: prisTreff, antallParsed: annonser.length,
+        ldBlokker, priceKontekst,
       });
     }
 
