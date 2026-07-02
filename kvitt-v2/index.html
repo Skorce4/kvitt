@@ -40,8 +40,8 @@
   --bg:var(--paper-50); --surface:#FFFFFF; --line:#E7E2D8; --line-2:#D8D2C4;
   --r-1:8px; --r-2:12px; --r-3:16px; --r-4:24px;
   --sh-sm:0 1px 2px rgba(16,24,40,.06);
-  --sh-md:0 4px 12px rgba(16,24,40,.08);
-  --sh-lg:0 12px 32px rgba(16,24,40,.14);
+  --sh-md:0 6px 18px rgba(16,24,40,.10);
+  --sh-lg:0 18px 44px rgba(16,24,40,.16);
   --dur-1:120ms; --dur-2:240ms; --dur-3:400ms;
   --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.4,.64,1);
 }
@@ -322,10 +322,45 @@ footer{background:var(--navy-800);color:rgba(255,255,255,.65);margin-top:0}
 .sk-r.s{width:70%}
 /* toast/feil i rapport */
 .rfeil{background:var(--red-100);border:1px solid rgba(198,69,48,.3);color:var(--red-600);border-radius:var(--r-1);padding:12px 14px;font-size:14px}
+/* ===== LIV OG BEVEGELSE (fra forrige utgave, tilpasset nye tokens) ===== */
+#splash{position:fixed;inset:0;z-index:2000;background:var(--navy-800);display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity .5s,visibility .5s}
+#splash.gone{opacity:0;visibility:hidden}
+#splash canvas{position:absolute;inset:0;width:100%;height:100%}
+.splash-mark{position:relative;z-index:2;opacity:0;transform:translateY(16px) scale(.97);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.splash-mark.show{opacity:1;transform:none}
+.hero{overflow:hidden}
+.hero canvas#heroCv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bevis{position:relative;overflow:hidden}
+.bevis canvas#bevisCv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bevis .wrap{position:relative;z-index:1}
+.ordbytt{display:inline-block;transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1);will-change:opacity,transform}
+.ordbytt.ut{opacity:0;transform:translateY(-14px)}
+form.laster > :not(#lasteKort){display:none}
+#lasteKort{text-align:center;padding:26px 8px 18px}
+.spin.big{width:36px;height:36px;border-width:3px;border-color:var(--guard-100);border-top-color:var(--guard-600);margin:0 auto}
+.lmsg{margin-top:16px;font-weight:600;font-size:15px;transition:opacity .25s}
+.lbar{height:6px;background:var(--paper-100);border-radius:3px;margin:18px auto 0;max-width:340px;overflow:hidden}
+.lbar i{display:block;height:100%;width:8%;background:var(--guard-500);border-radius:3px;transition:width .6s var(--ease)}
+.lnote{font-size:12px;color:var(--ink-3);margin-top:12px}
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:999;pointer-events:none;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.15}}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@keyframes riseIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.rsek{animation:riseIn .55s var(--ease) both;box-shadow:var(--sh-sm)}
+.rsek:nth-child(2){animation-delay:.05s}.rsek:nth-child(3){animation-delay:.1s}.rsek:nth-child(4){animation-delay:.15s}.rsek:nth-child(5){animation-delay:.2s}.rsek:nth-child(6){animation-delay:.25s}.rsek:nth-child(7){animation-delay:.3s}
+.lamp{animation:riseIn .5s var(--ease) both}
+.get,.steg,.beviskort{transition:transform var(--dur-2) var(--ease),box-shadow var(--dur-2) var(--ease)}
+.get:hover,.steg:hover{transform:translateY(-3px);box-shadow:var(--sh-md)}
+.beviskort:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.22)}
+.minirapp{transition:transform var(--dur-3) var(--ease),box-shadow var(--dur-3) var(--ease)}
+.minirapp:hover{transform:rotate(0deg) translateY(-4px);box-shadow:var(--sh-lg)}
+.docbox::after{content:'KVITTN';position:absolute;right:-4px;bottom:-14px;font-family:'Space Grotesk';font-weight:700;font-size:56px;color:rgba(16,24,40,.045);letter-spacing:2px;pointer-events:none}
 @media print{header.site,.chipbar,.kopibtn,.lesmer,.delrad,.nysjekk,footer,.fallback{display:none!important}body{background:#fff}.rsek{border:none;box-shadow:none;break-inside:avoid;page-break-inside:avoid}.clip{max-height:none!important}}
 </style>
 </head>
 <body>
+<div id="splash"><canvas id="splashCv"></canvas><div class="splash-mark" id="splashMark"></div></div>
 <a class="skip" href="#hoved">Hopp til innhold</a>
 
 <header class="site">
@@ -345,8 +380,9 @@ footer{background:var(--navy-800);color:rgba(255,255,255,.65);margin-top:0}
 <div id="landing">
 
 <section class="hero" id="verktoy">
+  <canvas id="heroCv" aria-hidden="true"></canvas>
   <div class="wrap-t">
-    <h1>Slipp at kjøperen<br>kommer <span class="hl">tilbake.</span></h1>
+    <h1><span class="ordbytt" id="ordbytt">Slipp</span> at kjøperen<br>kommer <span class="hl">tilbake.</span></h1>
     <p class="sub">Lim inn FINN-annonsen din. Kvitt’n finner formuleringene som kan koste deg titusener – og gir deg teksten som tetter hullene.</p>
     <form class="inputkort" id="sjekkForm" novalidate>
       <label for="finnUrl">Lim inn FINN-lenke</label>
@@ -364,6 +400,7 @@ footer{background:var(--navy-800);color:rgba(255,255,255,.65);margin-top:0}
       </details>
       <div class="hentestatus" id="henteStatus" role="status"><span class="spin"></span><span id="henteTekst">Henter annonsen fra FINN …</span></div>
       <div class="feltfeil" id="feltFeil" role="alert"></div>
+      <div id="lasteKort" hidden><div class="spin big"></div><div class="lmsg" id="lasteMsg">Leser annonsen din …</div><div class="lbar"><i id="lasteFyll"></i></div><div class="lnote">Tar normalt 10–20 sekunder</div></div>
     </form>
     <p class="trust" id="trustlinje"><b>Gratis</b> · <b>Annonsen lagres ikke</b> · Bygget på kjøpsloven og Statens vegvesen</p>
     <a class="sek" href="#eksempel">Se et eksempelresultat →</a>
@@ -394,6 +431,7 @@ footer{background:var(--navy-800);color:rgba(255,255,255,.65);margin-top:0}
 </section>
 
 <section class="bevis">
+  <canvas id="bevisCv" aria-hidden="true"></canvas>
   <div class="wrap">
     <span class="lbl" style="color:rgba(255,255,255,.5)">Derfor finnes Kvitt’n</span>
     <h2>Privatsalg er trygt. Helt til det ikke er det.</h2>
@@ -521,7 +559,23 @@ function scoreDom(s){return s>=75?'Annonsen din er godt beskyttet. Detaljene und
 function fyllEksempel(){const t=document.getElementById('annonseTekst');t.value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, s\u00e5 motoren f\u00f8les veldig sterk. Bilen har f\u00e5tt \u00f8kt ladetrykk hvis man liker \u00e5 tune bilene sine. Pent brukt, g\u00e5r som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";t.focus();}
 function visFeil(msg){const f=document.getElementById('feltFeil');f.textContent=msg;f.classList.add('vis');}
 function skjulFeil(){document.getElementById('feltFeil').classList.remove('vis');}
-function setHenter(on,txt){const h=document.getElementById('henteStatus');h.classList.toggle('vis',!!on);if(txt)document.getElementById('henteTekst').textContent=txt;const b=document.getElementById('btnSjekk');if(on){b.disabled=true;b.innerHTML='<span class="spin"></span>Analyserer \u2026';}else{b.disabled=false;b.textContent='Sjekk annonsen min';}}
+let lmT=null,lpT=null;
+function setHenter(on,txt){
+  const form=document.getElementById('sjekkForm'),lk=document.getElementById('lasteKort'),b=document.getElementById('btnSjekk');
+  clearInterval(lmT);clearInterval(lpT);
+  if(on){
+    form.classList.add('laster');lk.hidden=false;
+    const msgEl=document.getElementById('lasteMsg'),fyll=document.getElementById('lasteFyll');
+    let i=0;msgEl.textContent=txt||LM[0];msgEl.style.opacity=1;if(fyll)fyll.style.width='8%';
+    lmT=setInterval(function(){i=(i+1)%LM.length;msgEl.style.opacity=0;setTimeout(function(){msgEl.textContent=LM[i];msgEl.style.opacity=1;},220);},1600);
+    let p=8;lpT=setInterval(function(){p=Math.min(p+Math.random()*12,90);if(fyll)fyll.style.width=p+'%';},700);
+    b.disabled=true;
+  }else{
+    const fyll=document.getElementById('lasteFyll');if(fyll)fyll.style.width='100%';
+    setTimeout(function(){form.classList.remove('laster');lk.hidden=true;},220);
+    b.disabled=false;b.textContent='Sjekk annonsen min';
+  }
+}
 
 /* Live-validering av FINN-lenke */
 document.getElementById('finnUrl').addEventListener('input',function(){
@@ -629,9 +683,9 @@ function visRapport(r){
 
   /* Varsellamper (\u00e5pne som liste, detalj ekspanderbar) */
   let badN=0,warnN=0;
-  const lamper=(r.flags||[]).map(function(f){
+  const lamper=(r.flags||[]).map(function(f,lampIdx){
     let kode;if(f.level==='ok'){kode='OK';}else if(f.level==='bad'){badN++;kode='F-'+String(badN).padStart(2,'0');}else{warnN++;kode='V-'+String(warnN).padStart(2,'0');}
-    return '<div class="lamp"><button class="lamp-h" onclick="lampToggle(this)" aria-expanded="false">'+lampIkon(f.level)+'<b>'+esc(f.title)+'</b><span class="kode">'+kode+'</span><span class="pil">\u25be</span></button><div class="lamp-inn"><div><p>'+esc(f.detail)+'</p></div></div></div>';
+    return '<div class="lamp" style="animation-delay:'+(0.1+lampIdx*0.07)+'s"><button class="lamp-h" onclick="lampToggle(this)" aria-expanded="false">'+lampIkon(f.level)+'<b>'+esc(f.title)+'</b><span class="kode">'+kode+'</span><span class="pil">\u25be</span></button><div class="lamp-inn"><div><p>'+esc(f.detail)+'</p></div></div></div>';
   }).join('');
   const kroner=(r.reklamasjon&&r.reklamasjon.eksponering_nok!=null)?
     '<div class="kroner">Denne annonsen kan koste deg opptil <b style="color:'+col+'">'+kr(r.reklamasjon.eksponering_nok)+'</b> ved en reklamasjon.'+(r.reklamasjon.utfall?' Sannsynlig utfall: <b>'+esc(r.reklamasjon.utfall)+'</b>.':'')+'</div>':'';
@@ -699,7 +753,7 @@ function animerScore(score,col){
   setTimeout(function(){let cur=0;const t=setInterval(function(){
     cur+=Math.max(1,Math.ceil(score/30));if(cur>=score){cur=score;clearInterval(t);}
     const el=document.getElementById('scoreNum');if(el)el.textContent=cur;sett(cur);
-  },26);},250);
+  },26);if(score>80)setTimeout(confetti,600);},250);
 }
 
 /* ===== Seksjonsinnhold (async-felter) ===== */
@@ -967,6 +1021,98 @@ function syncFromHash(){
 }
 window.addEventListener('hashchange',syncFromHash);
 syncFromHash();
+</script>
+<script>
+/* ===== Ambient canvas (portet fra forrige utgave) ===== */
+const LM=["Leser annonsen mot kj\u00f8psloven \u2026","Analyserer reklamasjonsrisiko \u2026","Vurderer trygghetsscore \u2026","Henter offentlige data \u2026","Nesten ferdig \u2026"];
+function lineField(cv,color,opts){
+  opts=opts||{};
+  // Respekter reduced-motion: tegn ett stille bilde, ingen animasjon
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const count=opts.count||24;          // flere strøk enn før (var 16)
+  const alBoost=opts.alBoost||1.5;     // lysere strøk
+  const transparent=opts.transparent||false; // tegn uten navy-fyll (for seksjoner med egen bg)
+  const ctx=cv.getContext('2d');let lines=[],W,H;
+  function rs(){W=cv.width=cv.offsetWidth;H=cv.height=cv.offsetHeight;}rs();window.addEventListener('resize',rs);
+  function mk(){return{x:Math.random()*W,y:Math.random()*H,len:120+Math.random()*300,a:(Math.random()*.7-.35),sp:.08+Math.random()*.18,life:0,max:260+Math.random()*260,al:(.05+Math.random()*.09)*alBoost};}
+  for(let i=0;i<count;i++){const l=mk();l.life=Math.random()*l.max;lines.push(l);}
+  let on=true;
+  (function d(){if(!on)return;
+    if(transparent){ctx.clearRect(0,0,W,H);}else{ctx.clearRect(0,0,W,H);ctx.fillStyle='#0f1d33';ctx.fillRect(0,0,W,H);}
+    lines.forEach((l,i)=>{l.life++;const h=l.max/2;const al=l.life<h?(l.life/h)*l.al:((l.max-l.life)/h)*l.al;if(l.life>=l.max)lines[i]=mk();
+      l.x+=Math.cos(l.a)*l.sp;l.y+=Math.sin(l.a)*l.sp;
+      const x2=l.x+Math.cos(l.a)*l.len,y2=l.y+Math.sin(l.a)*l.len;
+      const g=ctx.createLinearGradient(l.x,l.y,x2,y2);
+      g.addColorStop(0,'rgba(55,196,111,0)');g.addColorStop(.5,'rgba(55,196,111,'+al+')');g.addColorStop(1,'rgba(55,196,111,0)');
+      ctx.save();ctx.strokeStyle=g;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+    });if(!reduce)requestAnimationFrame(d);})();
+  return ()=>{on=false;};
+}
+
+/* Hero-canvas: samme rolige strekfelt som f\u00f8r (navy-fyllet matcher hero-bakgrunnen) */
+lineField(document.getElementById('heroCv'),'#37c46f',{count:24,alBoost:1.5});
+/* Bevis-seksjonen: starter f\u00f8rst n\u00e5r den scrolles i syne (ytelse) */
+(function(){
+  const cv=document.getElementById('bevisCv');if(!cv)return;
+  let started=false;
+  const io=new IntersectionObserver(function(en){en.forEach(function(e){
+    if(e.isIntersecting&&!started){started=true;lineField(cv,'#37c46f',{count:18,alBoost:1.4,transparent:true});io.disconnect();}
+  });},{threshold:.05});
+  io.observe(cv.parentElement);
+})();
+
+/* ===== Splash: kun f\u00f8rste besok per okt, hopper over ved reduced motion ===== */
+(function(){
+  const sp=document.getElementById('splash');if(!sp)return;
+  let sett=false;try{sett=!!sessionStorage.getItem('kvSplash');}catch(e){}
+  if(redusert()||sett){sp.remove();return;}
+  document.getElementById('splashMark').innerHTML=logoSvg(72);
+  const stop=lineField(document.getElementById('splashCv'),'#37c46f');
+  setTimeout(function(){document.getElementById('splashMark').classList.add('show');},250);
+  setTimeout(function(){
+    sp.classList.add('gone');stop();
+    try{sessionStorage.setItem('kvSplash','1');}catch(e){}
+    setTimeout(function(){sp.remove();},600);
+  },1600);
+})();
+
+/* ===== Ordbytt i H1: Slipp <-> Unnga, myk fade (finpusset versjon) ===== */
+(function(){
+  const el=document.getElementById('ordbytt');if(!el)return;
+  if(redusert())return;
+  const syn=['Slipp','Unng\u00e5'];let i=0;
+  setInterval(function(){
+    el.classList.add('ut');
+    setTimeout(function(){
+      i=(i+1)%syn.length;el.textContent=syn[i];
+      requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.remove('ut');});});
+    },720);
+  },3800);
+})();
+
+/* ===== Confetti ved hoy score (portet) ===== */
+function confetti(){
+  if(redusert())return;
+  const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];
+  for(let i=0;i<60;i++){
+    const c=document.createElement('div');c.className='confetti';
+    c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];
+    c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';
+    document.body.appendChild(c);setTimeout(function(){c.remove();},4200);
+  }
+}
+
+/* ===== Reveal: landing-seksjoner toner inn ved scroll ===== */
+(function(){
+  if(redusert())return;
+  const els=document.querySelectorAll('#landing section:not(.hero) > .wrap, #landing section:not(.hero) > .wrap-t');
+  if(!('IntersectionObserver' in window)){return;}
+  els.forEach(function(el){el.classList.add('reveal');});
+  const io=new IntersectionObserver(function(es){es.forEach(function(e){
+    if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+  });},{threshold:.12});
+  els.forEach(function(el){io.observe(el);});
+})();
 </script>
 </body>
 </html>
