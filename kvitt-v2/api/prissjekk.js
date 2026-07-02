@@ -207,21 +207,22 @@ function analyserPriser(annonser, egenPris, egenKm) {
 
   if (rene.length < 3) return { antall: rene.length, forFå: true };
 
-  // 3) Km-prioritering med fallback: prøv strengt (12k) først for best
-  //    sammenlignbarhet, men løsne gradvis heller enn å gi brukeren ingenting.
-  //    Vi noterer hvor stramt vinduet ble, så vi kan være ærlige i visningen.
+  // 3) Km-prioritering: km påvirker pris sterkt, så vi holder vinduet stramt.
+  //    Prøv 12k → 20k → 30k. Strekker IKKE lenger enn 30k, for da blir
+  //    sammenligningen upålitelig (en bil med 50k km mer er en annen prisklasse).
   let kmVindu = null;
   if (egenKm && egenKm > 0) {
     const medKm = rene.filter((a) => a.km && a.km > 0);
-    if (medKm.length >= 3) {
-      for (const vindu of [12000, 20000, 30000, 50000]) {
+    // Bruk km-filter kun hvis et flertall av bilene faktisk har km-data
+    if (medKm.length >= Math.max(3, rene.length * 0.5)) {
+      for (const vindu of [12000, 20000, 30000]) {
         const nære = medKm.filter((a) => Math.abs(a.km - egenKm) <= vindu);
         if (nære.length >= 3) { rene = nære; kmVindu = vindu; break; }
       }
-      // Hvis selv 50k ikke gir 3, bruk alle med km-data (bedre enn ingenting)
-      if (!kmVindu && medKm.length >= 3) { rene = medKm; kmVindu = null; }
+      // Innenfor 30k km må vi ha minst 3 – ellers er ikke datagrunnlaget godt nok
+      if (!kmVindu) return { antall: 0, forFå: true, grunnKm: true };
     }
-    // Hvis nesten ingen har km-data, faller vi tilbake til alle rene
+    // Hvis for få har km-data, bruker vi alle rene (år-filteret holder dem i sjakk)
   }
 
   const grunnlag = rene;
