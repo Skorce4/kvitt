@@ -32,6 +32,25 @@ export default async function handler(req, res) {
     const html = await hentViaZyte(sokUrl, zyteKey);
     if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN." });
 
+    // Debug: vis hva vi faktisk fikk, så vi kan fikse parsingen
+    if (req.body && req.body.debug === true) {
+      const harNext = /__NEXT_DATA__/.test(html);
+      const harLd = /application\/ld\+json/.test(html);
+      const prisTreff = (html.match(/(\d[\d\s]{4,8})\s*kr/gi) || []).slice(0, 10);
+      const annonser = parseSokeresultat(html);
+      return res.status(200).json({
+        ok: true,
+        debug: true,
+        sokUrl,
+        htmlLengde: html.length,
+        harNextData: harNext,
+        harJsonLd: harLd,
+        prisTreffITekst: prisTreff,
+        antallParsed: annonser.length,
+        førstePar: annonser.slice(0, 5),
+      });
+    }
+
     const annonser = parseSokeresultat(html);
     if (annonser.length < 3) {
       return res.status(200).json({ ok: false, grunn: "For få sammenlignbare biler funnet.", antall: annonser.length });
