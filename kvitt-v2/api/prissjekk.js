@@ -71,6 +71,7 @@ export default async function handler(req, res) {
         harNextData: harNext, harJsonLd: harLd,
         prisTreffITekst: prisTreff, antallParsed: annonser.length,
         ldBlokker, priceKontekst,
+        alleRåPriser: hentOffers(html).slice(0, 30).map((a) => a.pris + " | " + a.tittel),
       });
     }
 
