@@ -399,16 +399,20 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 @media(max-width:900px){.panel-score{margin-bottom:22px}}
 .panel-hoyre{min-width:0}
 .acc-liste{display:flex;flex-direction:column;gap:10px}
-.acc-rad{background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
-.acc-rad.open{box-shadow:var(--sh-md)}
-.acc-hode{width:100%;display:flex;align-items:center;gap:14px;padding:18px 20px;background:none;border:none;cursor:pointer;text-align:left;font-family:'Poppins',sans-serif}
-.acc-ic{min-width:30px;height:22px;padding:0 8px;border-radius:5px;display:inline-grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;background:var(--ink);color:#fff;letter-spacing:.05em;flex:none}
-.acc-midt{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
-.acc-tittel{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
-.acc-tekst{font-size:14px;color:var(--ink2);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.acc-tall{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;flex:none;text-align:right}
-.acc-pil{flex:none;font-size:14px;color:var(--ink3);transition:transform .25s var(--ease);margin-left:4px}
-.acc-rad.open .acc-pil{transform:rotate(180deg);color:var(--green)}
+.acc-rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .22s var(--ease),transform .16s var(--ease),border-color .2s}
+.acc-rad:hover{box-shadow:var(--sh-md);transform:translateY(-2px);border-color:rgba(228,223,212,1)}
+.acc-rad.open{box-shadow:var(--sh-md);transform:none}
+.acc-rad::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85;transition:width .2s}
+.acc-rad.open::before{width:6px}
+.acc-hode{width:100%;height:76px;display:flex;align-items:center;gap:16px;padding:0 22px 0 26px;background:none;border:none;cursor:pointer;text-align:left;font-family:'Poppins',sans-serif}
+.acc-ic{min-width:36px;height:26px;padding:0 9px;border-radius:6px;display:inline-grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;background:var(--ink);color:#fff;letter-spacing:.05em;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.acc-midt{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.acc-tittel{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.acc-tekst{font-family:'Poppins',sans-serif;font-size:15px;font-weight:500;color:var(--ink);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-tall{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:21px;flex:none;text-align:right;letter-spacing:-.01em}
+.acc-pil{flex:none;width:26px;height:26px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-size:12px;color:var(--ink3);transition:transform .28s var(--ease),background .2s;margin-left:2px}
+.acc-rad:hover .acc-pil{background:var(--green-light)}
+.acc-rad.open .acc-pil{transform:rotate(180deg);color:var(--green);background:var(--green-light)}
 .acc-innhold{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
 .acc-rad.open .acc-innhold{grid-template-rows:1fr}
 .acc-inner{overflow:hidden;min-height:0}
@@ -1174,7 +1178,7 @@ function tegnAccordion(){
   const rader=WIZ.steps.map((s,i)=>{
     if(!s.kort)return '';
     // Innhold rendres alltid (så det finnes for animasjon), men raden starter lukket.
-    return '<div class="acc-rad" data-i="'+i+'">'+
+    return '<div class="acc-rad" data-i="'+i+'" style="--acc-farge:'+(s.kort.farge||GREEN)+'">'+
       '<button class="acc-hode" onclick="toggleAcc('+i+')">'+
         '<span class="acc-ic">'+s.kort.ic+'</span>'+
         '<span class="acc-midt"><span class="acc-tittel">'+esc(s.kort.tittel)+'</span>'+
@@ -1264,15 +1268,18 @@ function startPrissjekk(merke,modell,aar,egenPris){
   }
   const aarNum=aar?String(aar).match(/(19|20)\d{2}/):null;
   if(!merke||!aarNum){window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();return;}
+  // Trekk km fra annonseteksten (for +50 000 km-filter)
+  const kmMatch=txt.match(/(?:kilometerstand|km\b)[:\s]*(\d[\d\s]{2,8})/i)||txt.match(/(\d[\d\s]{2,8})\s*km\b/i);
+  const egenKm=kmMatch?parseInt(kmMatch[1].replace(/\s/g,''),10):null;
   window.__prisVenter=true;oppdaterVisning();
   fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,debug:true})})
+    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,egenKm:egenKm,debug:true})})
     .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
       // Lagre debug-info uansett utfall (midlertidig, for feilsøking)
       window.__prisDebug=pd;
       if(pd&&pd.antallParsed>=3){
         // Debug-modus returnerer ikke ferdig analyse – gjør et ekte kall uten debug
-        const pr2=await fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris})});
+        const pr2=await fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})});
         const pd2=await pr2.json().catch(()=>({}));
         if(pd2&&pd2.ok&&pd2.antall>=3){window.__pris=pd2;window.__prisVenter=false;oppdaterVisning();return;}
       }
