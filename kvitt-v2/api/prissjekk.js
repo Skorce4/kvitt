@@ -13,21 +13,25 @@ export default async function handler(req, res) {
   if (!zyteKey) return res.status(200).json({ ok: false, grunn: "Prissjekk ikke aktivert" });
 
   try {
-    const { merke, modell, aar, egenPris } = req.body || {};
+    const { merke, modell, aar, egenPris, egenKm } = req.body || {};
     if (!merke || !aar) {
       return res.status(400).json({ ok: false, grunn: "Mangler merke/år for søk." });
     }
 
-    // Bygg FINN-søke-URL. FINN bruskt bil søk: /car/used/search.html med query.
-    // Vi søker på "merke modell" som fritekst + årsintervall ±2 år.
+    // Bygg FINN-søke-URL. Fritekst på "merke modell" + årsintervall ±2 år.
+    // Km-filter: hvis vi kjenner selgerens km, be FINN om biler opp til +50 000 km.
     const aarNum = parseInt(aar, 10);
     const query = [merke, modell].filter(Boolean).join(" ");
-    const sokUrl =
+    let sokUrl =
       "https://www.finn.no/mobility/search/car?q=" +
       encodeURIComponent(query) +
       "&year_from=" + (aarNum - 2) +
       "&year_to=" + (aarNum + 2) +
-      "&sort=PRICE_ASC"; // billigste først – vi vil ha nedre enden
+      "&sort=PRICE_ASC";
+    const kmTall = egenKm ? parseInt(String(egenKm).replace(/\D/g, ""), 10) : null;
+    if (kmTall && kmTall > 0) {
+      sokUrl += "&mileage_to=" + (kmTall + 50000);
+    }
 
     const html = await hentViaZyte(sokUrl, zyteKey);
     if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN." });
@@ -113,11 +117,20 @@ function parseSokeresultat(html) {
     try {
       const data = JSON.parse(nextMatch[1]);
       const funnet = dyptSokEtterAnnonser(data);
-      if (funnet.length) return funnet;
+      if (funnet.length >= 3) return funnet;
     } catch (_) {}
   }
 
-  // Strategi 2: JSON-LD ItemList
+  // Strategi 2 (HOVED): Hent alle "offers"-objekter direkte fra HTML.
+  // FINN legger hver bil som ...,"model":"XV","offers":{"@type":"Offer","price":"31941",
+  // "priceCurrency":"NOK",...,"name":"Subaru XV",...}. Vi matcher disse med regex,
+  // og henter pris + navn (og km hvis det finnes i nærheten).
+  // JSON-en er ofte escaped (\"price\") siden den ligger i en JS-streng, så vi
+  // håndterer begge former.
+  const offersTreff = hentOffers(html);
+  if (offersTreff.length >= 3) return offersTreff;
+
+  // Strategi 3: JSON-LD ItemList (fallback, sjelden på FINN-søk)
   const ldMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   for (const m of ldMatches) {
     try {
@@ -134,16 +147,40 @@ function parseSokeresultat(html) {
       }
     } catch (_) {}
   }
-  if (annonser.length) return annonser;
-
-  // Strategi 3: regex-fallback – let etter pris-mønstre i teksten (kr-beløp)
-  // Brukes bare hvis strukturert data mangler. Mindre presist.
-  const prisMatches = [...html.matchAll(/(\d[\d\s]{4,8})\s*kr/gi)];
-  for (const m of prisMatches) {
-    const p = parseInt(m[1].replace(/\s/g, ""), 10);
-    if (p >= 20000 && p <= 3000000) annonser.push({ pris: p, tittel: "", km: null });
-  }
   return annonser;
+}
+
+// Henter alle bil-annonser ved å matche "offers"-objekter i FINN sin HTML.
+// Takler både ren JSON ("price":"31941") og escaped JSON (\"price\":\"31941\").
+function hentOffers(html) {
+  const ut = [];
+  const sett = new Set();
+
+  // Match price + priceCurrency NOK + name, i begge escape-former.
+  // Vi leter etter price-verdien og det tilhørende name-feltet i samme offers-blokk.
+  // Regex fanger: price (tall), og name (tekst) som følger kort etter i samme objekt.
+  const patterns = [
+    // Escaped: \"price\":\"31941\" ... \"name\":\"Subaru XV\"
+    /\\"price\\":\\"(\d{4,7})\\"[\s\S]{0,300}?\\"name\\":\\"([^\\"]{3,60})\\"/g,
+    // Ren: "price":"31941" ... "name":"Subaru XV"
+    /"price":"(\d{4,7})"[\s\S]{0,300}?"name":"([^"]{3,60})"/g,
+    // Pris som tall uten anførselstegn: "price":31941 ... "name":"..."
+    /"price":(\d{4,7})[\s\S]{0,300}?"name":"([^"]{3,60})"/g,
+  ];
+
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const pris = parseInt(m[1], 10);
+      const tittel = (m[2] || "").replace(/\\u[\dA-Fa-f]{4}/g, "").trim();
+      if (pris >= 15000 && pris <= 3000000) {
+        const nokkel = pris + "|" + tittel.slice(0, 20);
+        if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: null }); }
+      }
+    }
+    if (ut.length >= 3) break; // fant nok med dette mønsteret
+  }
+  return ut;
 }
 
 // Går rekursivt gjennom __NEXT_DATA__ og plukker objekter som ligner bilannonser
