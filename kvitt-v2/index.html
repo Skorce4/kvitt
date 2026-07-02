@@ -27,7 +27,7 @@
   --sh-btn:0 4px 12px rgba(47,158,95,.24),inset 0 1px 0 rgba(255,255,255,.3);
   --ease:cubic-bezier(.33,1,.33,1);
 }
-html{scroll-behavior:smooth}
+html{scroll-behavior:auto;scrollbar-gutter:stable}
 body{font-family:'Poppins',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;overflow-x:hidden}
 /* grain */
 body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.5;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")}
@@ -410,14 +410,14 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .diag-body{padding:18px 22px 22px}
 .rad-liste{display:flex;flex-direction:column;gap:10px;position:relative}
 /* Rad – normal tilstand */
-.rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .3s cubic-bezier(.4,0,.2,1),transform .28s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;will-change:transform}
+.rad{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .35s cubic-bezier(.4,0,.2,1),transform .3s cubic-bezier(.34,1.4,.64,1),opacity .35s ease}
 .rad:hover{box-shadow:var(--sh-md);transform:translateY(-3px)}
 .rad::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85;transition:width .3s cubic-bezier(.4,0,.2,1);z-index:2}
 .rad-hode{width:100%;height:76px;display:flex;align-items:center;gap:16px;padding:0 22px 0 26px;background:none;border:none;cursor:pointer;text-align:left;font-family:'Poppins',sans-serif}
 .acc-pil{flex:none;width:26px;height:26px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-size:13px;color:var(--ink3);transition:background .25s;margin-left:2px}
 .rad:hover .acc-pil{background:var(--green-light);color:var(--green)}
 /* Utvidingen – CSS grid-rows animerer høyden (følger .valgt-klassen) */
-.rad-utvid{display:grid;grid-template-rows:0fr;transition:grid-template-rows .42s cubic-bezier(.22,1,.36,1)}
+.rad-utvid{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s cubic-bezier(.22,1,.36,1)}
 .rad.valgt .rad-utvid{grid-template-rows:1fr}
 .rad-utvid>.rad-inner{overflow:hidden;min-height:0}
 .rad.valgt .rad-inner{padding:4px 22px 22px}
@@ -1273,12 +1273,15 @@ function velgRad(i){
     if(idx===i){ rad.classList.add('valgt'); valgtRad=rad; }
     else{ rad.classList.add('dimmet'); }
   });
-  // Scroll boblen pent til toppen så man slipper å scrolle selv.
-  // Radens egen topp flytter seg ikke når den utvider (den vokser nedover),
-  // så vi kan scrolle til den med en gang – jevnt, uten å vente på animasjonen.
+  // Scroll boblen pent til toppen. scrollIntoView er robust mot layout-endringer.
+  // Liten forsinkelse så grid-rows-animasjonen har begynt (jevnere resultat).
   if(valgtRad){
-    const top=valgtRad.getBoundingClientRect().top+window.scrollY-16;
-    window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+    setTimeout(()=>{
+      if(WIZ.åpen!==i)return;
+      valgtRad.scrollIntoView({behavior:'smooth',block:'start'});
+      // Juster litt ned så den ikke klistrer helt i toppen (16px luft)
+      setTimeout(()=>{if(WIZ.åpen===i)window.scrollBy({top:-16,behavior:'smooth'});},50);
+    },120);
   }
 }
 
