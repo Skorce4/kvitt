@@ -979,16 +979,14 @@ function render(r){
         const dbg=window.__prisDebug;
         let dbgHtml='';
         if(dbg){
-          dbgHtml='<div style="margin-top:14px;padding:14px;background:#0f1d33;border-radius:10px;font-family:monospace;font-size:11px;color:#9fb0c4;line-height:1.6;overflow-x:auto"><b style="color:#37c46f">DEBUG (midlertidig)</b><br>'+
-            'søk-URL: '+esc(dbg.sokUrl||'?')+'<br>'+
-            'HTML-lengde: '+(dbg.htmlLengde||0)+'<br>'+
-            'har NextData: '+dbg.harNextData+'<br>'+
-            'har JSON-LD: '+dbg.harJsonLd+'<br>'+
-            'pris-treff i tekst: '+(dbg.prisTreffITekst?dbg.prisTreffITekst.join(', '):'ingen')+'<br>'+
-            'antall parset: '+(dbg.antallParsed||0)+'<br>'+
-            'grunn: '+esc(dbg.grunn||'?')+'</div>';
+          dbgHtml='<div style="margin-top:14px;padding:14px;background:#0f1d33;border-radius:10px;font-family:monospace;font-size:11px;color:#9fb0c4;line-height:1.6;overflow-x:auto;white-space:pre-wrap;word-break:break-word"><b style="color:#37c46f">DEBUG (midlertidig)</b>\n'+
+            'HTML-lengde: '+(dbg.htmlLengde||0)+'\n'+
+            'har JSON-LD: '+dbg.harJsonLd+' | NextData: '+dbg.harNextData+'\n'+
+            'antall parset: '+(dbg.antallParsed||0)+'\n\n'+
+            '<b style="color:#f4d23c">JSON-LD blokker:</b>\n'+esc(JSON.stringify(dbg.ldBlokker||[],null,1))+'\n\n'+
+            '<b style="color:#f4d23c">price-kontekst:</b>\n'+esc(JSON.stringify(dbg.priceKontekst||[],null,1))+'</div>';
         }
-        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN til å gi et pålitelig markedsbilde.</p>'+dbgHtml;
+        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN.</p>'+dbgHtml;
       }
       if(!p){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
