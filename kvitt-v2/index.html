@@ -198,7 +198,14 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 .dash-bars i{flex:1;border-radius:1px;background:rgba(255,255,255,.08);transition:.25s}
 .dash-blurb{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:14px;line-height:1.5}
 .dash-lamps-t{font-family:'Space Grotesk';font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.32);margin:18px 2px 10px}
-.dlamp{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:7px;opacity:0;transform:translateX(12px);animation:lampIn .4s var(--ease) forwards}
+.dlamp{border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:7px;opacity:0;transform:translateX(12px);animation:lampIn .4s var(--ease) forwards;overflow:hidden}
+.dlamp-hode{width:100%;display:flex;align-items:center;gap:12px;padding:11px 13px;background:none;border:none;cursor:pointer;text-align:left}
+.dlamp-pil{flex:none;font-size:11px;color:rgba(255,255,255,.4);transition:transform .28s var(--ease);margin-left:2px}
+.dlamp.open .dlamp-pil{transform:rotate(180deg)}
+.dlamp-innhold{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s var(--ease)}
+.dlamp.open .dlamp-innhold{grid-template-rows:1fr}
+.dlamp-inner{overflow:hidden;min-height:0}
+.dlamp-inner p{margin:0;padding:0 13px 13px 51px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.6)}
 .dlamp .di{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:none}
 .dlamp.red .di{background:rgba(207,61,51,.16)}.dlamp.amber .di{background:rgba(199,132,27,.16)}.dlamp.green .di{background:rgba(47,158,95,.16)}
 .dlamp .di svg{width:19px;height:19px}
@@ -412,6 +419,8 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .diag-innhold .dlamp{background:#fff;border:1px solid var(--line)}
 .diag-innhold .dlamp .db b{color:var(--ink)}
 .diag-innhold .dlamp .db span{color:var(--ink2)}
+.diag-innhold .dlamp-pil{color:var(--ink3)}
+.diag-innhold .dlamp-inner p{color:var(--ink2)}
 .diag-innhold .delknapp{background:var(--paper);border:1px solid var(--line2);color:var(--navy)}
 .diag-innhold .delknapp:hover{background:var(--green-light)}
 .acc-liste{display:flex;flex-direction:column;gap:10px}
@@ -947,7 +956,15 @@ function render(r){
     if(f.level==='ok'){code='OK';}
     else if(f.level==='bad'){badN++;code='F-'+String(badN).padStart(2,'0');}
     else{warnN++;code='V-'+String(warnN).padStart(2,'0');}
-    return '<div class="dlamp '+f.level+'" style="animation-delay:'+(0.15+i*0.09)+'s"><span class="di">'+(lampIcons[f.level]||lampIcons.warn)+'</span><div class="db"><b>'+esc(f.title)+'</b><span>'+esc(f.detail)+'</span></div><span class="dcode">'+code+'</span></div>';
+    return '<div class="dlamp '+f.level+'" style="animation-delay:'+(0.15+i*0.09)+'s">'+
+      '<button class="dlamp-hode" onclick="toggleLamp(this)">'+
+        '<span class="di">'+(lampIcons[f.level]||lampIcons.warn)+'</span>'+
+        '<span class="db"><b>'+esc(f.title)+'</b></span>'+
+        '<span class="dcode">'+code+'</span>'+
+        '<span class="dlamp-pil">▾</span>'+
+      '</button>'+
+      '<div class="dlamp-innhold"><div class="dlamp-inner"><p>'+esc(f.detail)+'</p></div></div>'+
+    '</div>';
   }).join('');
 
   const kroneLinje=(r.reklamasjon&&r.reklamasjon.eksponering_nok!=null)
@@ -995,18 +1012,7 @@ function render(r){
       const head='<div class="step-eyebrow lbl"><span class="ic">KR</span>Pris mot markedet</div>'+
         '<h3>Ligger prisen din riktig?</h3>';
       if(window.__prisTom){
-        const dbg=window.__prisDebug;
-        let dbgHtml='';
-        if(dbg){
-          dbgHtml='<div style="margin-top:14px;padding:14px;background:#0f1d33;border-radius:10px;font-family:monospace;font-size:11px;color:#9fb0c4;line-height:1.6;overflow-x:auto;white-space:pre-wrap;word-break:break-word"><b style="color:#37c46f">DEBUG (midlertidig)</b>\n'+
-            'HTML-lengde: '+(dbg.htmlLengde||0)+'\n'+
-            'har JSON-LD: '+dbg.harJsonLd+' | NextData: '+dbg.harNextData+'\n'+
-            'antall parset: '+(dbg.antallParsed||0)+'\n\n'+
-            '<b style="color:#f4d23c">JSON-LD blokker:</b>\n'+esc(JSON.stringify(dbg.ldBlokker||[],null,1))+'\n\n'+
-            '<b style="color:#f4d23c">price-kontekst:</b>\n'+esc(JSON.stringify(dbg.priceKontekst||[],null,1))+'\n\n'+
-            '<b style="color:#f4d23c">Alle rå priser funnet:</b>\n'+esc((dbg.alleRåPriser||[]).join('\n'))+'</div>';
-        }
-        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN.</p>'+dbgHtml;
+        return head+'<p class="lead">Fant ikke nok sammenlignbare biler på FINN til å gi et pålitelig markedsbilde. Dette skjer for sjeldne modeller eller når annonsen mangler pris/år.</p>';
       }
       if(!p){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
@@ -1029,8 +1035,7 @@ function render(r){
           '<div class="pg-rad"><span class="pg-lab">Markedssnitt</span><span class="pg-val">'+kr(p.snitt)+'</span></div>'+
           '<div class="pg-rad"><span class="pg-lab">Høyeste</span><span class="pg-val">'+kr(p.høyest)+'</span></div>'+
         '</div>'+
-        '<p class="simnote">Markedsverdien ligger nær den nedre klyngen – det er dit kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>'+
-        (window.__prisDebug&&window.__prisDebug.alleRåPriser?'<div style="margin-top:14px;padding:14px;background:#0f1d33;border-radius:10px;font-family:monospace;font-size:11px;color:#9fb0c4;line-height:1.6;white-space:pre-wrap"><b style="color:#37c46f">DEBUG – alle rå priser (midlertidig):</b>\n'+esc(window.__prisDebug.alleRåPriser.join('\n'))+'</div>':'');
+        '<p class="simnote">Markedsverdien ligger nær den nedre klyngen – det er dit kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>';
     }});
   }
   // Offisielle data fra Statens vegvesen (kun hvis reg.nr fantes i teksten)
@@ -1297,21 +1302,19 @@ function startPrissjekk(merke,modell,aar,egenPris){
   const egenKm=kmMatch?parseInt(kmMatch[1].replace(/\s/g,''),10):null;
   window.__prisVenter=true;oppdaterVisning();
   fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,egenKm:egenKm,debug:true})})
+    body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})})
     .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
-      // Lagre debug-info uansett utfall (midlertidig, for feilsøking)
-      window.__prisDebug=pd;
-      if(pd&&pd.antallParsed>=3){
-        // Debug-modus returnerer ikke ferdig analyse – gjør et ekte kall uten debug
-        const pr2=await fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({merke:merke,modell:modell||'',aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})});
-        const pd2=await pr2.json().catch(()=>({}));
-        if(pd2&&pd2.ok&&pd2.antall>=3){window.__pris=pd2;window.__prisVenter=false;oppdaterVisning();return;}
-      }
-      window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();
+      if(pd&&pd.ok&&pd.antall>=3){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
+      else{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();}
     }).catch(()=>{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();});
 }
 function oppdaterPrisSteg(){ oppdaterVisning(); }
 function oppdaterVegvesenSteg(){ oppdaterVisning(); }
+// Åpner/lukker en varsellampe-dropdown inne i Diagnose.
+function toggleLamp(btn){
+  const lamp=btn.closest('.dlamp');
+  if(lamp)lamp.classList.toggle('open');
+}
 function confetti(){if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;const cols=['#2f9e5f','#37c46f','#0f1d33','#f4d23c'];for(let i=0;i<60;i++){const c=document.createElement('div');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDuration=(2.2+Math.random()*1.6)+'s';c.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4200);}}
 function toggleMail(){
   const box=document.getElementById('mailBox');
