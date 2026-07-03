@@ -25,26 +25,52 @@ export default async function handler(req, res) {
       "https://www.finn.no/mobility/search/car?q=" + encodeURIComponent(query) +
       "&year_from=" + (aarNum - 1) + "&year_to=" + (aarNum + 1) + "&sort=PRICE_ASC";
 
-    let html = await hentViaZyte(sokUrl, zyteKey);
+    const zdbg = [];
+    let html = await hentViaZyte(sokUrl, zyteKey, zdbg);
     let annonser = html ? parseSokeresultat(html) : [];
     let kildeHtml = html;
+    let soketype = "eksakt";
 
-    // Fallback: bredere søk hvis få treff
+    // Nivå 2: bredere år hvis få treff
     if (annonser.length < 3) {
       const bredUrl =
         "https://www.finn.no/mobility/search/car?q=" + encodeURIComponent(query) +
         "&year_from=" + (aarNum - 2) + "&year_to=" + (aarNum + 2) + "&sort=PRICE_ASC";
-      const html2 = await hentViaZyte(bredUrl, zyteKey);
+      const html2 = await hentViaZyte(bredUrl, zyteKey, zdbg);
       if (html2) {
         const flere = parseSokeresultat(html2);
-        if (flere.length > annonser.length) { annonser = flere; kildeHtml = html2; }
+        if (flere.length > annonser.length) { annonser = flere; kildeHtml = html2; soketype = "bredt"; }
       }
     }
+
+    // Nivå 3: MODELLFAMILIE. For svært sjeldne biler (ML63, RS6 osv.) finnes det
+    // ofte NULL direkte treff – men en innkjøper gir ikke opp der: da prises det
+    // fra modellfamilien (ML350/ML500 for en ML63) pluss variant-påslag.
+    // Rask-modus (rå HTML) så dette bonus-søket ikke koster full render.
+    if (annonser.length < 1) {
+      const fam = familieSok(merke, modell);
+      if (fam) {
+        const famUrl =
+          "https://www.finn.no/mobility/search/car?q=" + encodeURIComponent(fam) +
+          "&year_from=" + (aarNum - 3) + "&year_to=" + (aarNum + 3) + "&sort=PRICE_ASC";
+        const html3 = await hentViaZyte(famUrl, zyteKey, zdbg, { rask: true });
+        if (html3) {
+          const fFunn = parseSokeresultat(html3);
+          if (fFunn.length > 0) { annonser = fFunn; kildeHtml = html3; soketype = "familie"; }
+        }
+      }
+    }
+
     // Hent km fra synlig korttekst for annonser der JSON-en manglet den
     annonser = berikMedKm(kildeHtml, annonser);
 
     if (annonser.length < 1) {
-      return res.status(200).json({ ok: false, grunn: "Fant ingen sammenlignbare biler.", _debug: { fraFinn: 0 } });
+      const kvote = zdbg.some((s) => /:(401|402|403)/.test(s));
+      return res.status(200).json({
+        ok: false,
+        grunn: kvote ? "Prisdata-kvoten ser ut til å være brukt opp." : "Fant ingen sammenlignbare biler på FINN.",
+        _debug: { fraFinn: 0, soketype, zyte: zdbg },
+      });
     }
 
     // Dedupliser og begrens til 25 (nok kontekst, kontrollert kost)
@@ -76,7 +102,7 @@ BILEN SOM VURDERES:
 - Selgers pris: ${egenPris ? Number(egenPris).toLocaleString("nb-NO") + " kr" : "ikke oppgitt"}
 - Fra annonsen (variant/utstyr): ${(kontekst || "").slice(0, 350)}${funnListe}
 
-AKTIVE FINN-ANNONSER (tittel | pris | km):
+AKTIVE FINN-ANNONSER (tittel | pris | km)${soketype === "familie" ? " – MERK: ingen direkte treff på varianten; listen er fra MODELLFAMILIEN" : ""}:
 ${liste}
 
 METODE – tenk som en innkjøper som skal treffe reell omsetningsverdi:
@@ -87,6 +113,7 @@ METODE – tenk som en innkjøper som skal treffe reell omsetningsverdi:
 5. Negative forhold ved bilen som vurderes – høy km relativt til de sammenlignbare, mange tidligere eiere, manglende servicehistorikk, mangler i annonsen – trekker verdien ytterligere ned. Ligger bilen øverst i km-spennet blant de sammenlignbare, skal estimatet ligge PÅ eller UNDER den laveste seriøse annonsen.
 6. REGELEN VIRKER BEGGE VEIER: har bilen som vurderes KLART LAVERE kilometerstand enn de sammenlignbare, er det et reelt fortrinn som skal prises – da skal estimatet ligge OVER ankernes prisnivå, km-justert opp. Sett aldri markedsverdien på bunnen av spennet når bilen har best km av alle.
 7. Km-justering: sjeldne/dyre biler ca. 800-1200 kr per 1000 km, vanlige ca. 400-600 kr.
+8. HVIS listen er fra modellfamilien (ingen direkte treff på varianten): estimer fra nærmeste familiemedlemmer og legg til/trekk fra variantens kjente markedspåslag (en AMG/RS/M-variant ligger typisk 30-80 % over standardmodellen avhengig av alder). Sett konfidens "lav" og si i begrunnelsen at det ikke finnes direkte sammenlignbare biler ute nå.
 
 KALIBRERINGSEKSEMPEL 1: En CLA180 med 180 000 km og 10 tidligere eiere vurderes. Sammenlignbare ligger 119 900-135 000 kr, flere fra forhandler med garanti, og laveste har 170 000 km (mindre enn bilen). Riktig estimat: ca. 110 000-120 000 kr – under laveste annonse, fordi bilen ligger øverst i km-spennet, har uvanlig mange eiere, og forhandlerprisene inkluderer garanti en privatselger ikke tilbyr.
 
@@ -122,6 +149,15 @@ Svar KUN med gyldig JSON, ingenting annet:
     console.error("Estimat-feil:", err);
     return res.status(200).json({ ok: false, grunn: "Estimat feilet.", detail: String(err && err.message || err) });
   }
+}
+
+// Modellfamilie-søk: "ML63" -> "ML", "CLA 180" -> "CLA", "A45 AMG" -> "A".
+// Brukes når null direkte treff – bedre å prise fra familien enn å gi opp.
+function familieSok(merke, modell) {
+  const tok = String(modell || "").trim().split(/\s+/)[0] || "";
+  const fam = tok.replace(/\d.*$/, "").trim();
+  if (fam.length >= 1) return (merke + " " + fam).trim();
+  return merke || null;
 }
 
 async function callClaude(apiKey, prompt, maxTokens) {
@@ -172,22 +208,45 @@ function berikMedKm(html, annonser) {
   return annonser;
 }
 
-async function hentViaZyte(url, zyteKey) {
-  try {
-    const r = await fetch("https://api.zyte.com/v1/extract", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Basic " + Buffer.from(zyteKey + ":").toString("base64"),
-      },
-      body: JSON.stringify({ url, browserHtml: true, geolocation: "NO" }),
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data.browserHtml || null;
-  } catch (_) {
+async function hentViaZyte(url, zyteKey, dbg, opts) {
+  const rask = opts && opts.rask;
+  const kall = async (body) => {
+    try {
+      const r = await fetch("https://api.zyte.com/v1/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Basic " + Buffer.from(zyteKey + ":").toString("base64"),
+        },
+        body: JSON.stringify({ url, ...body, geolocation: "NO" }),
+      });
+      if (!r.ok) return { status: r.status };
+      const data = await r.json();
+      if (data.browserHtml) return { html: data.browserHtml };
+      if (data.httpResponseBody) return { html: Buffer.from(data.httpResponseBody, "base64").toString("utf8") };
+      return { status: "tom" };
+    } catch (e) {
+      return { status: "nett:" + String(e && e.message || e).slice(0, 50) };
+    }
+  };
+  // rask-modus: kun rå HTML (billig/hurtig) – brukes til bonus-søk
+  if (rask) {
+    const r = await kall({ httpResponseBody: true });
+    if (r.html) return r.html;
+    if (dbg) dbg.push("zyte-rask:" + r.status);
     return null;
   }
+  // 1) Full nettleser-render
+  let r = await kall({ browserHtml: true });
+  if (r.html) return r.html;
+  if (dbg) dbg.push("zyte:" + r.status);
+  // 401/402/403 = nøkkel/kvote – ingen vits å prøve mer
+  if (r.status === 401 || r.status === 402 || r.status === 403) return null;
+  // 2) Rask fallback: rå HTML (FINN-søk er serverrendret, ofte nok)
+  r = await kall({ httpResponseBody: true });
+  if (r.html) return r.html;
+  if (dbg) dbg.push("zyte2:" + r.status);
+  return null;
 }
 
 function parseSokeresultat(html) {
