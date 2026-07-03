@@ -157,8 +157,14 @@ function hentOffers(html) {
         // Let etter km/mileage i et vindu rundt treffet (±400 tegn)
         const start = Math.max(0, m.index - 200);
         const vindu = html.slice(start, m.index + 400);
-        const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i) || vindu.match(/(\d{4,7})\s*km/i);
-        const km = kmMatch ? parseInt(kmMatch[1], 10) : null;
+        // km kan stå som JSON-felt ("mileage":178700) ELLER som synlig tekst
+        // med mellomrom i tallet ("178 700 km"). JSON-feltet søkes rundt treffet;
+        // synlig tekst søkes KUN FREMOVER – km står etter annonsens tittel, og et
+        // bakovervindu ville grepet forrige bils km.
+        const frem = html.slice(m.index, m.index + 600);
+        const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i)
+          || frem.match(/(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d{4,7})\s*km/i);
+        const km = kmMatch ? parseInt(String(kmMatch[1]).replace(/[\s\u00a0\u202f]/g, ""), 10) : null;
         const nokkel = pris + "|" + tittel.slice(0, 20);
         if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km < 999999) ? km : null }); }
       }
