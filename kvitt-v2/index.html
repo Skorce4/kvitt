@@ -1174,11 +1174,13 @@ function render(r){
       if(p.ankere&&p.ankere.length){
         ankerHtml='<div class="ankere"><div class="ankere-tit">Nærmest din bil'+(p.egenKm?' ('+kr(p.egenKm).replace(' kr',' km')+')':'')+'</div>'+
           p.ankere.map((a)=>{
-            const kmTxt=a.km!=null?Number(a.km).toLocaleString('nb-NO')+' km':'km ukjent';
-            const diffTxt=(a.kmDiff!=null&&a.kmDiff!==0)?(a.kmDiff>0?'+':'−')+Math.abs(Math.round(a.kmDiff/1000))+'k km':'~samme km';
+            const kmTxt=a.km!=null?Number(a.km).toLocaleString('nb-NO')+' km':'—';
+            const diffTxt=a.kmDiff==null
+              ?(a.km!=null?'km-forskjell ukjent':'km ikke oppgitt i annonsen')
+              :(a.kmDiff===0?'~samme km som din':((a.kmDiff>0?'+':'−')+Math.abs(Math.round(a.kmDiff/1000))+'k km vs. din'));
             const justerte=(a.justering&&a.justering!==0);
             return '<div class="anker"><span class="akm">'+kmTxt+'</span>'+
-              '<span class="ainfo">'+esc(a.tittel||'Sammenlignbar bil')+'<br>'+diffTxt+' vs. din</span>'+
+              '<span class="ainfo">'+esc(a.tittel||'Sammenlignbar bil')+'<br>'+diffTxt+'</span>'+
               '<span class="apris">'+(justerte?'<span class="rå">'+kr(a.faktiskPris)+'</span><br>':'')+'<span class="just">'+kr(a.pris)+'</span></span></div>';
           }).join('')+'</div>';
       }
