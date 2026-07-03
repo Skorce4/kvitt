@@ -207,22 +207,38 @@ function analyserPriser(annonser, egenPris, egenKm) {
 
   if (rene.length < 3) return { antall: rene.length, forFå: true };
 
-  // 3) Km-prioritering: km påvirker pris sterkt, så vi holder vinduet stramt.
-  //    Prøv 12k → 20k → 30k. Strekker IKKE lenger enn 30k, for da blir
-  //    sammenligningen upålitelig (en bil med 50k km mer er en annen prisklasse).
+  // 3) KM-HÅNDTERING: km ekskluderer ALDRI en bil. 12k km er bare det foretrukne
+  //    vinduet – finnes det nok biler der, bruker vi dem. Finnes det for få,
+  //    søker vi bredere (20k → 30k → alle), og justerer i stedet prisen for
+  //    km-differansen. Sats per 1000 km avhenger av bilklasse: dyrere/sjeldnere
+  //    biler taper mer verdi per km enn rimelige. Bedre et km-justert bredt
+  //    grunnlag enn "ingen data".
   let kmVindu = null;
+  let kmJustert = false;
   if (egenKm && egenKm > 0) {
     const medKm = rene.filter((a) => a.km && a.km > 0);
-    // Bruk km-filter kun hvis et flertall av bilene faktisk har km-data
-    if (medKm.length >= Math.max(3, rene.length * 0.5)) {
+    if (medKm.length >= 3) {
+      // Prøv å finne et stramt vindu med nok biler (til prioritering)
       for (const vindu of [12000, 20000, 30000]) {
         const nære = medKm.filter((a) => Math.abs(a.km - egenKm) <= vindu);
         if (nære.length >= 3) { rene = nære; kmVindu = vindu; break; }
       }
-      // Innenfor 30k km må vi ha minst 3 – ellers er ikke datagrunnlaget godt nok
-      if (!kmVindu) return { antall: 0, forFå: true, grunnKm: true };
+      // Finnes det IKKE nok innen 30k: bruk ALLE biler med km-data, men
+      // justér hver bils pris mot selgerens km. Vi gir aldri opp her.
+      if (!kmVindu) {
+        // Km-sats: dyrere biler taper mer verdi per km. Grovt anslag basert på
+        // medianpris (kr tapt per 1000 km km-differanse).
+        const medPris = persentil(medKm.map((a) => a.pris).sort((x, y) => x - y), 50);
+        const satsPer1000 = medPris > 400000 ? 1000 : medPris > 250000 ? 700 : 450;
+        rene = medKm.map((a) => {
+          const diffKm = a.km - egenKm;              // positiv = bilen har KJØRT MER enn din
+          const justering = (diffKm / 1000) * satsPer1000; // mer km => lavere reell verdi
+          return { ...a, pris: Math.round(a.pris + justering) }; // løft billige høy-km opp mot din km
+        });
+        kmJustert = true;
+      }
     }
-    // Hvis for få har km-data, bruker vi alle rene (år-filteret holder dem i sjakk)
+    // Hvis nesten ingen har km-data, bruker vi alle rene (år-filteret holder dem i sjakk)
   }
 
   const grunnlag = rene;
@@ -253,8 +269,9 @@ function analyserPriser(annonser, egenPris, egenKm) {
   return {
     antall: grunnlag.length,
     antallTotalt: grunnlag.length,
-    kmVektet: kmVindu != null,
+    kmVektet: kmVindu != null || kmJustert,
     kmVindu: kmVindu,
+    kmJustert: kmJustert,
     lavest, høyest, snitt, median, nedreKlynge,
     egenPris: egenPris ? Number(egenPris) : null,
     vurdering,
