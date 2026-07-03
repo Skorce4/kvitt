@@ -1142,7 +1142,7 @@ function render(r){
         const farge=p.vurdering==='over'?'warn':'ok';
         banner='<div class="prisbanner '+farge+'"><div class="pb-din">Din pris: '+kr(p.egenPris)+'</div><p>'+tekst+'</p></div>';
       }
-      return head+'<p class="lead">Basert på '+p.antall+' sammenlignbare biler på FINN (vrak og skadede filtrert bort).</p>'+
+      return head+'<p class="lead">Basert på '+p.antall+' sammenlignbare biler på FINN (vrak og skadede filtrert bort).'+(p.kmJustert?' Få biler lå nær din kilometerstand, så prisene er justert for km-forskjell.':p.kmVindu?' Kilometerstand innenfor '+(p.kmVindu/1000)+' 000 km av din.':'')+'</p>'+
         banner+
         '<div class="pris3">'+
           '<div class="pris3-kort hoved">'+
