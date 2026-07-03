@@ -1444,6 +1444,11 @@ function startPrissjekk(merke,modell,aar,egenPris){
     // Vanlige bilmerker – enkelt uttrekk fra tekst
     const mm=txt.match(/\b(Volkswagen|VW|Audi|BMW|Mercedes|Toyota|Volvo|Tesla|Skoda|Ford|Peugeot|Nissan|Kia|Hyundai|Mazda|Honda|Opel|Renault|Citroen|Porsche|Golf|Passat|Tiguan)\b/i);
     if(mm)merke=mm[1];
+    // Variantkoder impliserer merke når merkenavnet mangler i teksten
+    else if(/\bRS\s?\d/i.test(txt)||/\bS[3-8]\b/i.test(txt))merke='Audi';
+    else if(/\bM[2-8]\b/i.test(txt)||/\bxDrive\b/i.test(txt))merke='BMW';
+    else if(/\bAMG\b/i.test(txt)||/\b4MATIC\b/i.test(txt))merke='Mercedes';
+    else if(/\bGTI\b|\bGTD\b|\bR-?Line\b/i.test(txt))merke='Volkswagen';
   }
   const aarNum=aar?String(aar).match(/(19|20)\d{2}/):null;
   if(!merke||!aarNum){window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();return;}
@@ -1452,21 +1457,34 @@ function startPrissjekk(merke,modell,aar,egenPris){
   // annen prisklasse enn en vanlig A180. Vi trekker ut variant-signaler fra
   // annonsetittelen og legger dem til i søket, så vi sammenligner riktig bil.
   // Ser etter høyytelses-/variantkoder som skiller pris dramatisk.
-  const førsteLinje=(txt.split(/\n/)[0]||'')+' '+(txt.slice(0,120));
+  const førsteLinje=(txt.split(/\n/)[0]||'')+' '+(txt.slice(0,140));
+  // Kun EKTE høyytelses-/utstyrsvarianter som faktisk flytter pris betydelig.
+  // Modellnavn (V60, XC60, A4) håndteres av modell-feltet – de skal IKKE med her.
   const variantTreff=[];
-  // AMG / M / RS / S-line / GTI / R / N-varianter + motorkoder (A45, C63, M3, RS6, S3, GTI…)
   const vp=[
-    /\bAMG\b/i,/\bM(?:\s?)(?:Sport|Performance)\b/i,
-    /\b([A-Z]{1,3}\d{2,3})\b/,           // A45, C63, M340, RS6, S3, Q50 osv.
-    /\bGTI\b/i,/\bGTD\b/i,/\bR-?Line\b/i,/\bS-?Line\b/i,
-    /\b(\d{3})\s?(?:HK|hk|hp)\b/,        // effekt (360HK) – sterkt variant-signal
-    /\b(4MATIC|quattro|xDrive|AWD|4Motion)\b/i,
+    /\bRS\s?\d{1,2}\b/i,                 // RS3, RS6 – Audi RS
+    /\bS[3-8]\b/i,                       // S3, S4, S5 – Audi S (ikke S60/S90 = Volvo-modeller)
+    /\bM[2-8]\b(?!\d)/i,                 // M2, M3, M4 – BMW M
+    /\b[A-Z]\d{2}\b/,                    // A45, C63, E63 – Mercedes AMG-koder (bokstav+2 siffer)
+    /\bAMG\b/i,/\bGTI\b/i,/\bGTD\b/i,/\bType\s?R\b/i,
+    /\b(\d{3})\s?(?:HK|hk|hp)\b/,        // effekt (400HK) – variant-signal
+    /\b(4MATIC|quattro|xDrive)\b/i,      // AWD-system (utstyr, hjelper å skille)
   ];
-  for(const re of vp){const m=førsteLinje.match(re);if(m){variantTreff.push(m[1]||m[0]);}}
-  // Bygg forbedret modell-streng: generisk modell + variant-signaler (maks 3, unngå duplikat)
+  for(const re of vp){const m=førsteLinje.match(re);if(m){variantTreff.push((m[1]||m[0]).replace(/\s+/g,''));}}
+  // Bygg søk: modell (fra vegvesen) + variantkoder som IKKE alt ligger i modellnavnet
   let modellSøk=modell||'';
-  const unike=[...new Set(variantTreff.map(v=>v.trim()).filter(Boolean))].slice(0,3);
-  if(unike.length){modellSøk=(modellSøk+' '+unike.join(' ')).trim();}
+  const modellLower=modellSøk.toLowerCase();
+  const sterkVariant=variantTreff.find(v=>/^(RS|S|M)\d/i.test(v)||/AMG/i.test(v)||/^[A-Z]\d{2}$/.test(v));
+  const unike=[...new Set(variantTreff.map(v=>v.trim()).filter(Boolean))]
+    .filter(v=>!modellLower.includes(v.toLowerCase()))  // dropp det som alt er i modellnavnet
+    .slice(0,3);
+  if(sterkVariant&&!modellLower.includes(sterkVariant.toLowerCase())){
+    // Ekte høyytelsesvariant uten vegvesen-modell (f.eks. "RS3" der vegvesen ga "A3")
+    // La varianten lede søket foran den generiske modellen
+    modellSøk=(sterkVariant+' '+unike.filter(u=>u!==sterkVariant).join(' ')).trim();
+  }else if(unike.length){
+    modellSøk=(modellSøk+' '+unike.join(' ')).trim();
+  }
 
   // Trekk km fra annonseteksten
   const kmMatch=txt.match(/(?:kilometerstand|km\b)[:\s]*(\d[\d\s]{2,8})/i)||txt.match(/(\d[\d\s]{2,8})\s*km\b/i);
