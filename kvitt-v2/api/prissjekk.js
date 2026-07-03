@@ -38,8 +38,12 @@ export default async function handler(req, res) {
       sokUrl += "&mileage_to=" + (kmTall + 60000);
     }
 
-    const html = await hentViaZyte(sokUrl, zyteKey);
-    if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN.", _debug: { steg: "zyte-tomt" } });
+    const zdbg = [];
+    const html = await hentViaZyte(sokUrl, zyteKey, zdbg);
+    if (!html) {
+      const kvote = zdbg.some((s) => /:(401|402|403)/.test(s));
+      return res.status(200).json({ ok: false, grunn: kvote ? "Prisdata-kvoten ser ut til å være brukt opp." : "Fikk ikke søkeresultat fra FINN.", _debug: { steg: "zyte-tomt", zyte: zdbg } });
+    }
 
     let annonser = parseSokeresultat(html);
     let kildeHtml = html;
@@ -51,7 +55,7 @@ export default async function handler(req, res) {
         "&year_from=" + (aarNum - 2) +
         "&year_to=" + (aarNum + 2) +
         "&sort=PRICE_ASC";
-      const html2 = await hentViaZyte(bredUrl, zyteKey);
+      const html2 = await hentViaZyte(bredUrl, zyteKey, zdbg);
       if (html2) {
         const flere = parseSokeresultat(html2);
         if (flere.length > annonser.length) { annonser = flere; kildeHtml = html2; }
@@ -101,22 +105,45 @@ function berikMedKm(html, annonser) {
   return annonser;
 }
 
-async function hentViaZyte(url, zyteKey) {
-  try {
-    const r = await fetch("https://api.zyte.com/v1/extract", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Basic " + Buffer.from(zyteKey + ":").toString("base64"),
-      },
-      body: JSON.stringify({ url, browserHtml: true, geolocation: "NO" }),
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data.browserHtml || null;
-  } catch (_) {
+async function hentViaZyte(url, zyteKey, dbg, opts) {
+  const rask = opts && opts.rask;
+  const kall = async (body) => {
+    try {
+      const r = await fetch("https://api.zyte.com/v1/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Basic " + Buffer.from(zyteKey + ":").toString("base64"),
+        },
+        body: JSON.stringify({ url, ...body, geolocation: "NO" }),
+      });
+      if (!r.ok) return { status: r.status };
+      const data = await r.json();
+      if (data.browserHtml) return { html: data.browserHtml };
+      if (data.httpResponseBody) return { html: Buffer.from(data.httpResponseBody, "base64").toString("utf8") };
+      return { status: "tom" };
+    } catch (e) {
+      return { status: "nett:" + String(e && e.message || e).slice(0, 50) };
+    }
+  };
+  // rask-modus: kun rå HTML (billig/hurtig) – brukes til bonus-søk
+  if (rask) {
+    const r = await kall({ httpResponseBody: true });
+    if (r.html) return r.html;
+    if (dbg) dbg.push("zyte-rask:" + r.status);
     return null;
   }
+  // 1) Full nettleser-render
+  let r = await kall({ browserHtml: true });
+  if (r.html) return r.html;
+  if (dbg) dbg.push("zyte:" + r.status);
+  // 401/402/403 = nøkkel/kvote – ingen vits å prøve mer
+  if (r.status === 401 || r.status === 402 || r.status === 403) return null;
+  // 2) Rask fallback: rå HTML (FINN-søk er serverrendret, ofte nok)
+  r = await kall({ httpResponseBody: true });
+  if (r.html) return r.html;
+  if (dbg) dbg.push("zyte2:" + r.status);
+  return null;
 }
 
 // Parser søkeresultat: henter { pris, tittel, km } per annonse.
