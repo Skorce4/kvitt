@@ -1142,7 +1142,7 @@ function render(r){
       const head='<div class="step-eyebrow lbl"><span class="ic">KR</span>Pris mot markedet</div>'+
         '<h3>Ligger prisen din riktig?</h3>';
       if(window.__prisTom){
-        return head+'<p class="lead">Fant ikke nok biler som er sammenlignbare nok til et pålitelig prisbilde. For en presis vurdering krever vi samme årsmodell og kilometerstand innenfor 12 000 km – finnes det for få slike på FINN akkurat nå, viser vi heller ingenting enn et misvisende tall.</p>';
+        return head+'<p class="lead">Fikk ikke hentet et pålitelig prisbilde for denne bilen akkurat nå.'+(window.__prisGrunn?' ('+esc(window.__prisGrunn)+')':'')+' Dette kan skyldes at det er svært få sammenlignbare biler ute på FINN, eller at pristjenesten er midlertidig utilgjengelig. Resten av rapporten står støtt uansett.</p>';
       }
       if(!p){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
@@ -1548,7 +1548,7 @@ function startPrissjekk(merke,modell,aar,egenPris){
       body:JSON.stringify(payload)})
       .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
         if(pd&&pd.ok&&pd.antall>=1){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
-        else{window.__prisVenter=false;window.__prisTom=true;
+        else{window.__prisVenter=false;window.__prisTom=true;window.__prisGrunn=window.__prisGrunn||(pd&&pd.grunn)||null;
           console.log('[Kvittn prissjekk] tomt resultat:',JSON.stringify(pd&&(pd._debug||pd),null,2));
           oppdaterVisning();}
       }).catch((e)=>{window.__prisVenter=false;window.__prisTom=true;console.log('[Kvittn prissjekk] feil:',e);oppdaterVisning();});
@@ -1580,7 +1580,7 @@ function startPrissjekk(merke,modell,aar,egenPris){
           egenPris:egenPris||null,egenKm:egenKm||null,vurdering:vurdering};
         window.__prisVenter=false;oppdaterVisning();
       }else{
-        console.log('[Kvittn estimat] falt tilbake:',ed&&(ed.grunn||ed.detail||''));
+        window.__prisGrunn=ed&&ed.grunn||null;console.log('[Kvittn estimat] falt tilbake:',ed&&(ed.grunn||ed.detail||''),JSON.stringify(ed&&ed._debug||{}));
         fallbackPrissjekk();
       }
     }).catch(function(e){console.log('[Kvittn estimat] feil, faller tilbake:',e);fallbackPrissjekk();});
