@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (!apiKey || !zyteKey) return res.status(200).json({ ok: false, grunn: "Estimat ikke aktivert." });
 
   try {
-    const { merke, modell, aar, egenPris, egenKm, kontekst } = req.body || {};
+    const { merke, modell, aar, egenPris, egenKm, kontekst, funn } = req.body || {};
     if (!merke || !aar) return res.status(400).json({ ok: false, grunn: "Mangler merke/år." });
 
     // 1) Hent sammenlignbare biler fra FINN (bredt søk – AI-en sorterer skjønnet)
@@ -60,6 +60,10 @@ export default async function handler(req, res) {
       (a.km ? Number(a.km).toLocaleString("nb-NO") + " km" : "km ukjent")
     ).join("\n");
 
+    const funnListe = Array.isArray(funn) && funn.length
+      ? "\n- Kjente forhold ved bilen (fra analysen): " + funn.slice(0, 6).join("; ")
+      : "";
+
     const prompt = `Du er en erfaren norsk bruktbilinnkjøper. Estimer reell markedsverdi for denne bilen, basert på aktive FINN-annonser.
 
 BILEN SOM VURDERES:
@@ -67,16 +71,20 @@ BILEN SOM VURDERES:
 - Årsmodell: ${aarNum}
 - Kilometerstand: ${egenKm ? Number(egenKm).toLocaleString("nb-NO") + " km" : "ukjent"}
 - Selgers pris: ${egenPris ? Number(egenPris).toLocaleString("nb-NO") + " kr" : "ikke oppgitt"}
-- Fra annonsen (variant/utstyr): ${(kontekst || "").slice(0, 220)}
+- Fra annonsen (variant/utstyr): ${(kontekst || "").slice(0, 350)}${funnListe}
 
 AKTIVE FINN-ANNONSER (tittel | pris | km):
 ${liste}
 
-METODE – følg denne som en innkjøper:
-1. Forkast annonser som er feil variant (f.eks. vanlig A3 når bilen er RS3), skadet/deler, eller åpenbart feilpriset.
+METODE – tenk som en innkjøper som skal treffe reell omsetningsverdi:
+1. Forkast annonser som er feil variant (f.eks. vanlig A3 når bilen er RS3), skadet/deler, eller åpenbart feilpriset. Annonser med vesentlig lavere km enn bilen som vurderes er IKKE sammenlignbare ankere.
 2. Velg de 1-4 annonsene nærmest i variant, utstyr og kilometerstand. Én god match er nok.
-3. Juster for km-forskjell: sjeldne/dyre biler ca. 800-1200 kr per 1000 km, vanlige ca. 400-600 kr. Juster skjønnsmessig for årsmodell og utstyr i titlene.
-4. Estimatet er REALISTISK OMSETNINGSVERDI – der bilen faktisk kan selges raskt, og der en oppkjøper kan by. Annonsepriser er ønskepriser; reell verdi ligger typisk i nedre del av spennet.
+3. Annonsepriser er ØNSKEPRISER, ikke salgspriser. Reell omsetning skjer under annonsenivået.
+4. Mange FINN-annonser er fra FORHANDLERE, ofte med 3-6 mnd garanti. Forhandlerpriser inkluderer garanti og forbrukerkjøpslov-rettigheter og ligger systematisk 5-15 % over hva samme bil oppnår privat. En privatselger uten garanti må ligge under forhandlernivå for å være konkurransedyktig.
+5. Negative forhold ved bilen som vurderes – høy km relativt til de sammenlignbare, mange tidligere eiere, manglende servicehistorikk, mangler i annonsen – trekker verdien ytterligere ned. Ligger bilen øverst i km-spennet blant de sammenlignbare, skal estimatet ligge PÅ eller UNDER den laveste seriøse annonsen.
+6. Km-justering: sjeldne/dyre biler ca. 800-1200 kr per 1000 km, vanlige ca. 400-600 kr.
+
+KALIBRERINGSEKSEMPEL: En CLA180 med 180 000 km og 10 tidligere eiere vurderes. Sammenlignbare ligger 119 900-135 000 kr, flere fra forhandler med garanti, og laveste har 170 000 km (mindre enn bilen). Riktig estimat: ca. 110 000-120 000 kr – under laveste annonse, fordi bilen ligger øverst i km-spennet, har uvanlig mange eiere, og forhandlerprisene inkluderer garanti en privatselger ikke tilbyr.
 
 Svar KUN med gyldig JSON, ingenting annet:
 {"estimat": tall, "lav": tall, "hoy": tall, "konfidens": "høy"|"middels"|"lav", "ankere": [{"tittel": "...", "pris": tall, "km": tall eller null, "hvorfor": "maks 8 ord"}], "begrunnelse": "1-2 setninger på norsk", "antallVurdert": tall, "antallBrukt": tall}`;
@@ -210,8 +218,14 @@ function hentOffers(html) {
         // Let etter km/mileage i et vindu rundt treffet (±400 tegn)
         const start = Math.max(0, m.index - 200);
         const vindu = html.slice(start, m.index + 400);
-        const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i) || vindu.match(/(\d{4,7})\s*km/i);
-        const km = kmMatch ? parseInt(kmMatch[1], 10) : null;
+        // km kan stå som JSON-felt ("mileage":178700) ELLER som synlig tekst
+        // med mellomrom i tallet ("178 700 km"). JSON-feltet søkes rundt treffet;
+        // synlig tekst søkes KUN FREMOVER – km står etter annonsens tittel, og et
+        // bakovervindu ville grepet forrige bils km.
+        const frem = html.slice(m.index, m.index + 600);
+        const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i)
+          || frem.match(/(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d{4,7})\s*km/i);
+        const km = kmMatch ? parseInt(String(kmMatch[1]).replace(/[\s\u00a0\u202f]/g, ""), 10) : null;
         const nokkel = pris + "|" + tittel.slice(0, 20);
         if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km < 999999) ? km : null }); }
       }
