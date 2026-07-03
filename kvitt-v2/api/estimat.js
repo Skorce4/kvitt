@@ -132,9 +132,20 @@ Svar KUN med gyldig JSON, ingenting annet:
       return res.status(200).json({ ok: false, grunn: "Kunne ikke tolke estimatet.", _debug: { fraFinn: unike.length } });
     }
 
+    // Diagnostikk: fanger vi ikke km, legg ved en rå bit av HTML-en rundt
+    // første pris – så ser vi det FAKTISKE formatet i konsollen og slutter å gjette.
+    const kmFunnet = unike.filter((a) => a.km).length;
+    let smak = null;
+    if (kmFunnet === 0 && kildeHtml && unike[0]) {
+      const i = kildeHtml.indexOf(String(unike[0].pris));
+      if (i !== -1) smak = kildeHtml.slice(Math.max(0, i - 150), i + 350);
+    }
+    const dbgUt = { fraFinn: unike.length, kmFunnet, medUrl: unike.filter((a) => a.url).length, soketype, zyte: zdbg, smak };
+
     return res.status(200).json({
       ok: true,
       kilde: "ai",
+      _debug: dbgUt,
       estimat: Math.round(data.estimat),
       lav: data.lav != null ? Math.round(data.lav) : null,
       hoy: data.hoy != null ? Math.round(data.hoy) : null,
@@ -149,7 +160,7 @@ Svar KUN med gyldig JSON, ingenting annet:
       antallBrukt: data.antallBrukt || (Array.isArray(data.ankere) ? data.ankere.length : 0),
       egenPris: egenPris ? Number(egenPris) : null,
       egenKm: egenKm ? Number(egenKm) : null,
-      _debug: { fraFinn: unike.length },
+      _debug: { fraFinn: unike.length, kmFunnet: unike.filter((a) => a.km).length, medUrl: unike.filter((a) => a.url).length, zyte: zdbg },
     });
   } catch (err) {
     console.error("Estimat-feil:", err);
@@ -276,6 +287,7 @@ async function hentViaZyte(url, zyteKey, dbg, opts) {
 function parseKort(html) {
   const ut = [];
   if (!html) return ut;
+  html = html.replace(/\\\//g, "/"); // escaped JSON-lenker fanges også
   const idRe = /mobility\/item\/(\d{7,10})/g;
   const treff = [];
   let m;
@@ -395,16 +407,25 @@ function hentOffers(html) {
         // Let etter km/mileage i et vindu rundt treffet (±400 tegn)
         const start = Math.max(0, m.index - 200);
         const vindu = html.slice(start, m.index + 400);
-        // km kan stå som JSON-felt ("mileage":178700) ELLER som synlig tekst
-        // med mellomrom i tallet ("178 700 km"). JSON-feltet søkes rundt treffet;
-        // synlig tekst søkes KUN FREMOVER – km står etter annonsens tittel, og et
-        // bakovervindu ville grepet forrige bils km.
-        const frem = html.slice(m.index, m.index + 600);
-        const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i)
-          || frem.match(/(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d{4,7})\s*km/i);
-        const km = kmMatch ? parseInt(String(kmMatch[1]).replace(/[\s\u00a0\u202f]/g, ""), 10) : null;
+        // km + annonse-id: bredt, unescapet vindu rundt prisen; velg treffet
+        // NÆRMEST prisen (JSON-objektet per annonse er selvstendig).
+        const vStart = Math.max(0, m.index - 1000);
+        const u = html.slice(vStart, m.index + 1000)
+          .replace(/\\\//g, "/").replace(/\\u00a0/gi, " ").replace(/\\"/g, '"');
+        const pPos = Math.min(m.index - vStart, u.length);
+        const naermest = (re) => {
+          let best = null, b;
+          while ((b = re.exec(u)) !== null) {
+            const d = Math.abs(b.index - pPos);
+            if (!best || d < best.d) best = { v: b[1] || b[2], d };
+          }
+          return best ? best.v : null;
+        };
+        const kmRaa = naermest(/"mileage"[^0-9-]{0,12}(\d{3,6})|(\d{1,3} \d{3}|\d{4,6})\s*km\b(?!\s*rekkevidde)/gi);
+        const km = kmRaa ? parseInt(String(kmRaa).replace(/ /g, ""), 10) : null;
+        const idRaa = naermest(/mobility\/item\/(\d{7,10})/g);
         const nokkel = pris + "|" + tittel.slice(0, 60);
-        if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km < 999999) ? km : null }); }
+        if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km >= 500 && km <= 500000) ? km : null, url: idRaa ? "https://www.finn.no/mobility/item/" + idRaa : null }); }
       }
     }
     if (ut.length >= 3) break;
