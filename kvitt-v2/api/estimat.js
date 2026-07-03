@@ -27,6 +27,7 @@ export default async function handler(req, res) {
 
     let html = await hentViaZyte(sokUrl, zyteKey);
     let annonser = html ? parseSokeresultat(html) : [];
+    let kildeHtml = html;
 
     // Fallback: bredere søk hvis få treff
     if (annonser.length < 3) {
@@ -36,9 +37,11 @@ export default async function handler(req, res) {
       const html2 = await hentViaZyte(bredUrl, zyteKey);
       if (html2) {
         const flere = parseSokeresultat(html2);
-        if (flere.length > annonser.length) annonser = flere;
+        if (flere.length > annonser.length) { annonser = flere; kildeHtml = html2; }
       }
     }
+    // Hent km fra synlig korttekst for annonser der JSON-en manglet den
+    annonser = berikMedKm(kildeHtml, annonser);
 
     if (annonser.length < 1) {
       return res.status(200).json({ ok: false, grunn: "Fant ingen sammenlignbare biler.", _debug: { fraFinn: 0 } });
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
     const sett = new Set();
     const unike = [];
     for (const a of annonser) {
-      const n = a.pris + "|" + (a.tittel || "").slice(0, 30);
+      const n = a.pris + "|" + (a.tittel || "").slice(0, 60);
       if (!sett.has(n)) { sett.add(n); unike.push(a); }
       if (unike.length >= 25) break;
     }
@@ -82,9 +85,14 @@ METODE – tenk som en innkjøper som skal treffe reell omsetningsverdi:
 3. Annonsepriser er ØNSKEPRISER, ikke salgspriser. Reell omsetning skjer under annonsenivået.
 4. Mange FINN-annonser er fra FORHANDLERE, ofte med 3-6 mnd garanti. Forhandlerpriser inkluderer garanti og forbrukerkjøpslov-rettigheter og ligger systematisk 5-15 % over hva samme bil oppnår privat. En privatselger uten garanti må ligge under forhandlernivå for å være konkurransedyktig.
 5. Negative forhold ved bilen som vurderes – høy km relativt til de sammenlignbare, mange tidligere eiere, manglende servicehistorikk, mangler i annonsen – trekker verdien ytterligere ned. Ligger bilen øverst i km-spennet blant de sammenlignbare, skal estimatet ligge PÅ eller UNDER den laveste seriøse annonsen.
-6. Km-justering: sjeldne/dyre biler ca. 800-1200 kr per 1000 km, vanlige ca. 400-600 kr.
+6. REGELEN VIRKER BEGGE VEIER: har bilen som vurderes KLART LAVERE kilometerstand enn de sammenlignbare, er det et reelt fortrinn som skal prises – da skal estimatet ligge OVER ankernes prisnivå, km-justert opp. Sett aldri markedsverdien på bunnen av spennet når bilen har best km av alle.
+7. Km-justering: sjeldne/dyre biler ca. 800-1200 kr per 1000 km, vanlige ca. 400-600 kr.
 
-KALIBRERINGSEKSEMPEL: En CLA180 med 180 000 km og 10 tidligere eiere vurderes. Sammenlignbare ligger 119 900-135 000 kr, flere fra forhandler med garanti, og laveste har 170 000 km (mindre enn bilen). Riktig estimat: ca. 110 000-120 000 kr – under laveste annonse, fordi bilen ligger øverst i km-spennet, har uvanlig mange eiere, og forhandlerprisene inkluderer garanti en privatselger ikke tilbyr.
+KALIBRERINGSEKSEMPEL 1: En CLA180 med 180 000 km og 10 tidligere eiere vurderes. Sammenlignbare ligger 119 900-135 000 kr, flere fra forhandler med garanti, og laveste har 170 000 km (mindre enn bilen). Riktig estimat: ca. 110 000-120 000 kr – under laveste annonse, fordi bilen ligger øverst i km-spennet, har uvanlig mange eiere, og forhandlerprisene inkluderer garanti en privatselger ikke tilbyr.
+
+KALIBRERINGSEKSEMPEL 2 (motsatt vei): En X5 xDrive45e 2020 med 72 900 km vurderes. Sammenlignbare 2020-modeller ligger 570 000-580 000 kr, men har 97 000-114 000 km – altså 25 000-40 000 km MER enn bilen. Riktig estimat: ca. 600 000-620 000 kr, OVER annonsenivået, fordi bilens lavere km er et fortrinn verdt ca. 800-1000 kr per 1000 km i denne klassen.
+
+I "begrunnelse": si eksplisitt hvordan bilens kilometerstand ligger mot de sammenlignbare (lavere/høyere, og omtrent hvor mye), og hvorfor estimatet derfor ligger over eller under annonsenivået.
 
 Svar KUN med gyldig JSON, ingenting annet:
 {"estimat": tall, "lav": tall, "hoy": tall, "konfidens": "høy"|"middels"|"lav", "ankere": [{"tittel": "...", "pris": tall, "km": tall eller null, "hvorfor": "maks 8 ord"}], "begrunnelse": "1-2 setninger på norsk", "antallVurdert": tall, "antallBrukt": tall}`;
@@ -135,6 +143,33 @@ function parseJson(raw) {
   try { return JSON.parse(t); } catch (e) {}
   try { return JSON.parse(t.replace(/[\u0000-\u001f]+/g, " ")); } catch (e) {}
   return null;
+}
+
+// Beriker annonser som mangler km: finner prisen som SYNLIG tekst i HTML
+// ("579 000 kr") og leser kilometerstanden som står like FØR den i samme
+// annonsekort ("2020 · 105 800 km · Plug-in Bensin · 81 km rekkevidde").
+// Virker uansett hvor JSON-blobben med prisene ligger i dokumentet.
+// Rekkevidde-tall ("82 km") har under 4 sifre og matches ikke.
+function berikMedKm(html, annonser) {
+  if (!html || !annonser || !annonser.length) return annonser;
+  const flat = html.replace(/[\u00a0\u202f]/g, " ");
+  const cursor = {}; // flere biler kan ha samme pris – søk videre fra forrige treff
+  for (const a of annonser) {
+    if (a.km) continue;
+    const prisFmt = String(a.pris).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    const fra = cursor[prisFmt] || 0;
+    let idx = flat.indexOf(prisFmt + " kr", fra);
+    if (idx === -1) idx = flat.indexOf(prisFmt + ",-", fra);
+    if (idx === -1) continue;
+    cursor[prisFmt] = idx + 1;
+    const bak = flat.slice(Math.max(0, idx - 400), idx);
+    const treff = [...bak.matchAll(/(\d{1,3}(?: \d{3})+|\d{5,7})\s*km\b/gi)];
+    if (treff.length) {
+      const km = parseInt(treff[treff.length - 1][1].replace(/\s/g, ""), 10);
+      if (km >= 1000 && km <= 500000) a.km = km;
+    }
+  }
+  return annonser;
 }
 
 async function hentViaZyte(url, zyteKey) {
@@ -226,7 +261,7 @@ function hentOffers(html) {
         const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i)
           || frem.match(/(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d{4,7})\s*km/i);
         const km = kmMatch ? parseInt(String(kmMatch[1]).replace(/[\s\u00a0\u202f]/g, ""), 10) : null;
-        const nokkel = pris + "|" + tittel.slice(0, 20);
+        const nokkel = pris + "|" + tittel.slice(0, 60);
         if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km < 999999) ? km : null }); }
       }
     }
