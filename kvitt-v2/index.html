@@ -88,6 +88,12 @@ body.result-mode .nav-link{display:none}
 input[type=url]:disabled{opacity:.55;cursor:not-allowed;background:var(--paper2)}
 input[type=url],textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r);color:var(--ink);font-family:'Poppins';font-size:15px;padding:14px 15px;outline:none;transition:border-color .18s,background .18s,box-shadow .18s}
 input[type=url]:focus,textarea:focus{border-color:var(--green);background:#fff;box-shadow:0 0 0 3px rgba(47,158,95,.14)}
+.finn-input-wrap{position:relative}
+.finn-input-wrap input{padding-right:92px}
+.paste-btn{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:var(--navy);color:#fff;border:none;border-radius:9px;padding:8px 14px;font-family:'Poppins';font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s;min-height:36px}
+.paste-btn:hover{background:#1a2f4d}
+.paste-btn:active{transform:translateY(-50%) scale(.96)}
+.paste-btn.ok{background:var(--green)}
 input::placeholder,textarea::placeholder{color:var(--ink3)}
 textarea{min-height:128px;line-height:1.5;resize:vertical}
 .hint{font-size:12.5px;color:var(--ink3);margin-top:8px}
@@ -685,7 +691,10 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <div class="checker" id="inputPanel">
     <div class="top"><b>Sjekk annonsen din</b><span class="lbl">Ingen innlogging</span></div>
     <label class="flabel lbl">Lim inn FINN-lenke</label>
-    <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/...">
+    <div class="finn-input-wrap">
+      <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/...">
+      <button type="button" class="paste-btn" id="pasteBtn" onclick="limInnLenke()" aria-label="Lim inn fra utklippstavlen">Lim inn</button>
+    </div>
     <p class="hint">Vi henter annonsen automatisk. Funker det ikke, lim inn teksten under.</p>
     <div class="or lbl"><span>eller lim inn teksten selv</span></div>
     <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
@@ -971,6 +980,20 @@ function setLoading(on,first){
 }
 function fillExample(){document.getElementById('annonseTekst').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";document.getElementById('annonseTekst').focus();}
 
+async function limInnLenke(){
+  const inp=document.getElementById('finnUrl');const btn=document.getElementById('pasteBtn');
+  try{
+    const txt=await navigator.clipboard.readText();
+    if(txt){
+      inp.value=txt.trim();
+      inp.dispatchEvent(new Event('input'));
+      const o=btn.textContent;btn.textContent='Limt inn';btn.classList.add('ok');
+      setTimeout(()=>{btn.textContent=o;btn.classList.remove('ok');},1400);
+    }
+  }catch(e){
+    inp.focus();
+  }
+}
 async function analyze(){
   let text="";
   const url=(document.getElementById('finnUrl').value||"").trim();
