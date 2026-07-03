@@ -86,7 +86,9 @@ export default async function handler(req, res) {
     const liste = unike.map((a, i) =>
       (i + 1) + ". " + (a.tittel || "Ukjent tittel") + " | " +
       Number(a.pris).toLocaleString("nb-NO") + " kr | " +
-      (a.km ? Number(a.km).toLocaleString("nb-NO") + " km" : "km ukjent")
+      (a.km ? Number(a.km).toLocaleString("nb-NO") + " km" : "km ukjent") +
+      (a.aar ? " | " + a.aar : "") +
+      (a.selger ? " | " + a.selger + (a.garantiMnd ? " (" + a.garantiMnd + " mnd garanti)" : "") : "")
     ).join("\n");
 
     const funnListe = Array.isArray(funn) && funn.length
@@ -137,7 +139,11 @@ Svar KUN med gyldig JSON, ingenting annet:
       lav: data.lav != null ? Math.round(data.lav) : null,
       hoy: data.hoy != null ? Math.round(data.hoy) : null,
       konfidens: data.konfidens || "middels",
-      ankere: Array.isArray(data.ankere) ? data.ankere.slice(0, 4) : [],
+      ankere: (Array.isArray(data.ankere) ? data.ankere.slice(0, 4) : []).map((ank) => {
+        // Koble AI-ankeret tilbake til den parsede annonsen: gir URL + km
+        const kilde = unike.find((u) => u.pris === ank.pris) || unike.find((u) => Math.abs(u.pris - (ank.pris || 0)) < 1000);
+        return { ...ank, km: ank.km != null ? ank.km : (kilde ? kilde.km : null), url: kilde ? kilde.url : null, selger: kilde ? kilde.selger : null };
+      }),
       begrunnelse: data.begrunnelse || "",
       antallVurdert: data.antallVurdert || unike.length,
       antallBrukt: data.antallBrukt || (Array.isArray(data.ankere) ? data.ankere.length : 0),
@@ -261,7 +267,72 @@ async function hentViaZyte(url, zyteKey, dbg, opts) {
   return null;
 }
 
+// Parser FINN-kortene DIREKTE fra rendret HTML, med annonse-lenkene som
+// ankere. Verifisert mot ekte FINN-søkesider: hvert kort inneholder
+// /mobility/item/ID (flere ganger), tittel, "2018 · 151 765 km · Bensin ·
+// Automat", "133 999 kr" og selgertype ("Merkeforhandler · 12 mnd garanti").
+// Gir pris + km + år + tittel + URL + selger per annonse – uavhengig av
+// FINN sin interne JSON-struktur.
+function parseKort(html) {
+  const ut = [];
+  if (!html) return ut;
+  const idRe = /mobility\/item\/(\d{7,10})/g;
+  const treff = [];
+  let m;
+  while ((m = idRe.exec(html)) !== null) treff.push({ id: m[1], idx: m.index });
+  if (!treff.length) return ut;
+  // Grupper påfølgende forekomster av samme id til ett kort
+  const kort = [];
+  for (const t of treff) {
+    const siste = kort[kort.length - 1];
+    if (siste && siste.id === t.id) { siste.slutt = t.idx; continue; }
+    kort.push({ id: t.id, start: t.idx, slutt: t.idx });
+  }
+  const strip = (s) => s
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[\u00a0\u202f]/g, " ")
+    .replace(/\s+/g, " ");
+  const sett = new Set();
+  for (let k = 0; k < kort.length; k++) {
+    if (sett.has(kort[k].id)) continue;
+    const til = k + 1 < kort.length ? kort[k + 1].start : Math.min(html.length, kort[k].slutt + 3000);
+    const seg = strip(html.slice(kort[k].start, til));
+    // År · km – kilometerstanden står rett etter årsmodellen
+    const aarKm = seg.match(/\b(20\d{2}|19\d{2})\b\s*[∙·•]\s*(\d{1,3}(?: \d{3})+|\d{1,6})\s*km\b(?!\s*rekkevidde)/);
+    // Pris: første "N NNN kr" i kortet (Solgt-kort mangler pris og hoppes over)
+    const prisM = seg.match(/(\d{1,3}(?: \d{3})+|\d{4,7})\s*kr\b/);
+    if (!prisM) continue;
+    const pris = parseInt(prisM[1].replace(/ /g, ""), 10);
+    if (!(pris >= 15000 && pris <= 3000000)) continue;
+    const km = aarKm ? parseInt(aarKm[2].replace(/ /g, ""), 10) : null;
+    const aar = aarKm ? parseInt(aarKm[1], 10) : null;
+    // Tittel: teksten før år-mønsteret (maks 90 tegn)
+    let tittel = null;
+    if (aarKm && aarKm.index != null) {
+      tittel = seg.slice(0, aarKm.index).split(">").pop()
+        .replace(/Betalt plassering|Solgt|Legg til som favoritt\.?|Sammenlign( biler)?/g, " ")
+        .replace(/["<>]/g, " ").replace(/\s+/g, " ").trim().slice(-90).trim();
+    }
+    // Selgertype + garanti: teksten etter prisen
+    const etter = seg.slice((prisM.index || 0) + prisM[0].length, (prisM.index || 0) + prisM[0].length + 140);
+    const selger = /Merkeforhandler/.test(etter) ? "Merkeforhandler" : /Forhandler/.test(etter) ? "Forhandler" : /Privat/.test(etter) ? "Privat" : null;
+    const gar = etter.match(/(\d{1,2})\s*mnd garanti/);
+    sett.add(kort[k].id);
+    ut.push({
+      pris, km: km && km >= 500 && km <= 500000 ? km : null, aar,
+      tittel: tittel || "FINN-annonse",
+      url: "https://www.finn.no/mobility/item/" + kort[k].id,
+      selger, garantiMnd: gar ? parseInt(gar[1], 10) : null,
+    });
+  }
+  return ut;
+}
+
 function parseSokeresultat(html) {
+  // PRIMÆR: parse kortene direkte (pris+km+år+URL+selger). Fallback: JSON-blob.
+  const kort = parseKort(html);
+  if (kort.length >= 1) return kort;
   const annonser = [];
 
   // Strategi 1: __NEXT_DATA__ (FINN sin Next.js-state med strukturert annonseliste)
