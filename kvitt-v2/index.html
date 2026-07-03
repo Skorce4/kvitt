@@ -1554,9 +1554,12 @@ function startPrissjekk(merke,modell,aar,egenPris){
       }).catch((e)=>{window.__prisVenter=false;window.__prisTom=true;console.log('[Kvittn prissjekk] feil:',e);oppdaterVisning();});
   };
 
-  // PRIMÆR: AI-estimat – vurderer sammenlignbare biler som en innkjøper
+  // PRIMÆR: AI-estimat – vurderer sammenlignbare biler som en innkjøper.
+  // Sender også funnene fra risikoanalysen (mange eiere, manglende historikk osv.)
+  // – de trekker reell verdi ned, akkurat som for en ekte innkjøper.
+  const funn=((a.flags||[]).filter(function(f){return f&&f.level!=='ok';}).map(function(f){return f.title;})).slice(0,6);
   fetch('/api/estimat',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({...payload,kontekst:(txt.split(/\n/)[0]||'')+' '+txt.slice(0,200)})})
+    body:JSON.stringify({...payload,kontekst:(txt.split(/\n/)[0]||'')+' '+txt.slice(0,350),funn:funn})})
     .then(async(er)=>{const ed=await er.json().catch(()=>({}));
       if(ed&&ed.ok&&typeof ed.estimat==='number'){
         // Map AI-svaret til visningsformatet (samme som anker-metoden)
