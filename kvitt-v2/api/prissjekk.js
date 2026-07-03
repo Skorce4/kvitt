@@ -230,7 +230,14 @@ function analyserPriser(annonser, egenPris, egenKm) {
 
   const snitt = Math.round(gP.reduce((s, p) => s + p, 0) / gP.length);
   const median = Math.round(persentil(gP, 50));
-  const nedreKlynge = Math.round(persentil(gP, 25));
+
+  // MARKEDSVERDI = snittet av den nederste tredjedelen av annonsene.
+  // Dette er "bunn av markedet" – der bilen realistisk omsettes, og der en
+  // aktør som Rebil kan by. Snittet av en tredjedel (ikke bare laveste eller
+  // ett persentil) gir et stabilt tall som tåler én bortkastet lavannonse.
+  const tredjedel = Math.max(1, Math.round(gP.length / 3));
+  const bunn = gP.slice(0, tredjedel);
+  const nedreKlynge = Math.round(bunn.reduce((s, p) => s + p, 0) / bunn.length);
   const lavest = gP[0];
   const høyest = gP[gP.length - 1];
 
