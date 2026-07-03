@@ -42,6 +42,7 @@ export default async function handler(req, res) {
     if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN.", _debug: { steg: "zyte-tomt" } });
 
     let annonser = parseSokeresultat(html);
+    let kildeHtml = html;
     // Fallback: fant vi svært få, prøv et bredere søk uten km-tak og med bare merke+modell
     if (annonser.length < 4 && kmTall) {
       const bredUrl =
@@ -53,9 +54,11 @@ export default async function handler(req, res) {
       const html2 = await hentViaZyte(bredUrl, zyteKey);
       if (html2) {
         const flere = parseSokeresultat(html2);
-        if (flere.length > annonser.length) annonser = flere;
+        if (flere.length > annonser.length) { annonser = flere; kildeHtml = html2; }
       }
     }
+    // Hent km fra synlig korttekst for annonser der JSON-en manglet den
+    annonser = berikMedKm(kildeHtml, annonser);
 
     // Anker-metoden trenger bare ÉN sammenlignbar bil.
     if (annonser.length < 1) {
@@ -69,6 +72,33 @@ export default async function handler(req, res) {
     console.error("Prissjekk feilet:", e);
     return res.status(500).json({ ok: false, grunn: "Prissjekk feilet." });
   }
+}
+
+// Beriker annonser som mangler km: finner prisen som SYNLIG tekst i HTML
+// ("579 000 kr") og leser kilometerstanden som står like FØR den i samme
+// annonsekort ("2020 · 105 800 km · Plug-in Bensin · 81 km rekkevidde").
+// Virker uansett hvor JSON-blobben med prisene ligger i dokumentet.
+// Rekkevidde-tall ("82 km") har under 4 sifre og matches ikke.
+function berikMedKm(html, annonser) {
+  if (!html || !annonser || !annonser.length) return annonser;
+  const flat = html.replace(/[\u00a0\u202f]/g, " ");
+  const cursor = {}; // flere biler kan ha samme pris – søk videre fra forrige treff
+  for (const a of annonser) {
+    if (a.km) continue;
+    const prisFmt = String(a.pris).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    const fra = cursor[prisFmt] || 0;
+    let idx = flat.indexOf(prisFmt + " kr", fra);
+    if (idx === -1) idx = flat.indexOf(prisFmt + ",-", fra);
+    if (idx === -1) continue;
+    cursor[prisFmt] = idx + 1;
+    const bak = flat.slice(Math.max(0, idx - 400), idx);
+    const treff = [...bak.matchAll(/(\d{1,3}(?: \d{3})+|\d{5,7})\s*km\b/gi)];
+    if (treff.length) {
+      const km = parseInt(treff[treff.length - 1][1].replace(/\s/g, ""), 10);
+      if (km >= 1000 && km <= 500000) a.km = km;
+    }
+  }
+  return annonser;
 }
 
 async function hentViaZyte(url, zyteKey) {
@@ -165,7 +195,7 @@ function hentOffers(html) {
         const kmMatch = vindu.match(/\\?"mileage\\?":\\?"?(\d{3,7})/i)
           || frem.match(/(\d{1,3}(?:[\s\u00a0\u202f]\d{3})+|\d{4,7})\s*km/i);
         const km = kmMatch ? parseInt(String(kmMatch[1]).replace(/[\s\u00a0\u202f]/g, ""), 10) : null;
-        const nokkel = pris + "|" + tittel.slice(0, 20);
+        const nokkel = pris + "|" + tittel.slice(0, 60);
         if (!sett.has(nokkel)) { sett.add(nokkel); ut.push({ pris, tittel, km: (km && km < 999999) ? km : null }); }
       }
     }
@@ -203,7 +233,7 @@ function analyserPriser(annonser, egenPris, egenKm) {
   const unike = [];
   const sett = new Set();
   for (const a of annonser) {
-    const nokkel = a.pris + "|" + (a.tittel || "").slice(0, 30);
+    const nokkel = a.pris + "|" + (a.tittel || "").slice(0, 60);
     if (!sett.has(nokkel)) { sett.add(nokkel); unike.push(a); }
   }
   _debug.etterDedup = unike.length;
