@@ -32,16 +32,34 @@ export default async function handler(req, res) {
       "&sort=PRICE_ASC";
     const kmTall = egenKm ? parseInt(String(egenKm).replace(/\D/g, ""), 10) : null;
     if (kmTall && kmTall > 0) {
-      // Romslig km-vindu i søket (±40k) – strammes til i analysen
-      sokUrl += "&mileage_to=" + (kmTall + 40000);
+      // Romslig km-tak i søket (+60k over din) – strammes/justeres i analysen.
+      // Bevisst romslig: bedre å hente for mange og filtrere i koden enn å
+      // filtrere bort sammenlignbare biler allerede i FINN-søket.
+      sokUrl += "&mileage_to=" + (kmTall + 60000);
     }
 
     const html = await hentViaZyte(sokUrl, zyteKey);
-    if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN." });
+    if (!html) return res.status(200).json({ ok: false, grunn: "Fikk ikke søkeresultat fra FINN.", _debug: { steg: "zyte-tomt" } });
 
-    const annonser = parseSokeresultat(html);
-    if (annonser.length < 3) {
-      return res.status(200).json({ ok: false, grunn: "For få sammenlignbare biler funnet.", antall: annonser.length });
+    let annonser = parseSokeresultat(html);
+    // Fallback: fant vi svært få, prøv et bredere søk uten km-tak og med bare merke+modell
+    if (annonser.length < 4 && kmTall) {
+      const bredUrl =
+        "https://www.finn.no/mobility/search/car?q=" +
+        encodeURIComponent(query) +
+        "&year_from=" + (aarNum - 2) +
+        "&year_to=" + (aarNum + 2) +
+        "&sort=PRICE_ASC";
+      const html2 = await hentViaZyte(bredUrl, zyteKey);
+      if (html2) {
+        const flere = parseSokeresultat(html2);
+        if (flere.length > annonser.length) annonser = flere;
+      }
+    }
+
+    // Anker-metoden trenger bare ÉN sammenlignbar bil.
+    if (annonser.length < 1) {
+      return res.status(200).json({ ok: false, grunn: "Fant ingen sammenlignbare biler.", antall: annonser.length, _debug: { fraFinn: annonser.length } });
     }
 
     const kmForAnalyse = egenKm ? parseInt(String(egenKm).replace(/\D/g, ""), 10) : null;
@@ -174,6 +192,7 @@ function dyptSokEtterAnnonser(obj, ut = [], dybde = 0) {
 // Kjernelogikk: filtrer vrak/uteliggere, regn ut nedre klynge + snitt.
 // egenKm: hvis oppgitt, vektes biler nærmest i km-stand (innen 10k) tyngst.
 function analyserPriser(annonser, egenPris, egenKm) {
+  const _debug = { inn: annonser.length };
   // Dedupliser på pris+tittel
   const unike = [];
   const sett = new Set();
@@ -181,14 +200,17 @@ function analyserPriser(annonser, egenPris, egenKm) {
     const nokkel = a.pris + "|" + (a.tittel || "").slice(0, 30);
     if (!sett.has(nokkel)) { sett.add(nokkel); unike.push(a); }
   }
+  _debug.etterDedup = unike.length;
 
   // 1) Fjern åpenbare vrak via tittel-signaler
   const vrakord = /\b(deler|delebil|skade|skadet|reparasjon|motorfeil|motorhavari|kondemn|defekt|start(er)? ikke|til reparasjon|prosjekt|havarist)\b/i;
   let rene = unike.filter((a) => !vrakord.test(a.tittel || ""));
+  _debug.etterVrak = rene.length;
 
-  // 2) Fjern statistiske uteliggere (urealistisk lave = vrak/feil/feil variant)
+  // 2) Fjern statistiske uteliggere – KUN når vi har rikelig data (>=6).
+  //    Med få biler er hver bil verdifull; vi filtrerer ikke bort da.
   const priser = rene.map((a) => a.pris).sort((x, y) => x - y);
-  if (priser.length >= 4) {
+  if (priser.length >= 6) {
     const q1 = persentil(priser, 25);
     const q3 = persentil(priser, 75);
     const iqr = q3 - q1;
@@ -196,85 +218,99 @@ function analyserPriser(annonser, egenPris, egenKm) {
     rene = rene.filter((a) => a.pris >= Math.max(nedreGrense, 15000));
   }
 
-  // 2b) Relativt filter mot FEIL MODELLVARIANT: en bil under 45 % av medianen
-  //     er nesten alltid en billigere variant som sneik seg inn (f.eks. en vanlig
-  //     A180 blandet med A45 AMG), en delebil, eller en feilpriset annonse.
-  //     Dette hindrer at "billigste seriøse" blir absurd lav.
-  if (rene.length >= 4) {
+  // 2b) Relativt filter mot FEIL MODELLVARIANT – KUN ved rikelig data (>=6).
+  //     Med få biler risikerer dette å fjerne nettopp de vi trenger.
+  if (rene.length >= 6) {
     const medianAlle = persentil(rene.map((a) => a.pris).sort((x, y) => x - y), 50);
     rene = rene.filter((a) => a.pris >= medianAlle * 0.45);
   }
+  _debug.etterOutlier = rene.length;
 
-  if (rene.length < 3) return { antall: rene.length, forFå: true };
+  // Vi gir bare opp hvis det ikke finnes en eneste sammenlignbar bil.
+  if (rene.length < 1) return { antall: rene.length, forFå: true, _debug };
 
-  // 3) KM-HÅNDTERING: km ekskluderer ALDRI en bil. 12k km er bare det foretrukne
-  //    vinduet – finnes det nok biler der, bruker vi dem. Finnes det for få,
-  //    søker vi bredere (20k → 30k → alle), og justerer i stedet prisen for
-  //    km-differansen. Sats per 1000 km avhenger av bilklasse: dyrere/sjeldnere
-  //    biler taper mer verdi per km enn rimelige. Bedre et km-justert bredt
-  //    grunnlag enn "ingen data".
-  let kmVindu = null;
+  // 3) ANKER-METODEN (slik en innkjøper faktisk jobber):
+  //    Sorter, finn de 1-3 bilene NÆRMEST din kilometerstand, og bruk dem som
+  //    ankeret. Km-juster hver av dem mot din km, så du sammenligner likt.
+  //    Én god match holder – da sier vi tydelig at det er basert på få.
+  const kmSats = (medPris) => (medPris > 400000 ? 1000 : medPris > 250000 ? 700 : 450);
+
+  let ankere;         // de bilene vi faktisk viser selgeren
   let kmJustert = false;
+  const medMedian = persentil(rene.map((a) => a.pris).sort((x, y) => x - y), 50);
+  const sats = kmSats(medMedian);
+
   if (egenKm && egenKm > 0) {
     const medKm = rene.filter((a) => a.km && a.km > 0);
-    if (medKm.length >= 3) {
-      // Prøv å finne et stramt vindu med nok biler (til prioritering)
-      for (const vindu of [12000, 20000, 30000]) {
-        const nære = medKm.filter((a) => Math.abs(a.km - egenKm) <= vindu);
-        if (nære.length >= 3) { rene = nære; kmVindu = vindu; break; }
-      }
-      // Finnes det IKKE nok innen 30k: bruk ALLE biler med km-data, men
-      // justér hver bils pris mot selgerens km. Vi gir aldri opp her.
-      if (!kmVindu) {
-        // Km-sats: dyrere biler taper mer verdi per km. Grovt anslag basert på
-        // medianpris (kr tapt per 1000 km km-differanse).
-        const medPris = persentil(medKm.map((a) => a.pris).sort((x, y) => x - y), 50);
-        const satsPer1000 = medPris > 400000 ? 1000 : medPris > 250000 ? 700 : 450;
-        rene = medKm.map((a) => {
-          const diffKm = a.km - egenKm;              // positiv = bilen har KJØRT MER enn din
-          const justering = (diffKm / 1000) * satsPer1000; // mer km => lavere reell verdi
-          return { ...a, pris: Math.round(a.pris + justering) }; // løft billige høy-km opp mot din km
-        });
-        kmJustert = true;
-      }
+    const utenKm = rene.filter((a) => !a.km || a.km <= 0);
+    if (medKm.length >= 1) {
+      // Sorter etter km-nærhet til selgerens bil, ta de tre nærmeste
+      const sortert = medKm.slice().sort((a, b) => Math.abs(a.km - egenKm) - Math.abs(b.km - egenKm));
+      const naermeste = sortert.slice(0, 3);
+      // Km-juster hver: en bil med mer km enn din er "for billig" -> juster opp
+      ankere = naermeste.map((a) => {
+        const diffKm = a.km - egenKm;
+        const justering = Math.round((diffKm / 1000) * sats);
+        return {
+          pris: Math.round(a.pris + justering),   // km-justert pris
+          faktiskPris: a.pris,                     // det annonsen faktisk står til
+          km: a.km,
+          tittel: a.tittel || null,
+          kmDiff: diffKm,
+          justering,
+        };
+      });
+      kmJustert = ankere.some((a) => a.justering !== 0);
+    } else {
+      // Ingen km-data i det hele tatt – bruk de rimeligste som anker, ujustert
+      ankere = utenKm.slice(0, 3).map((a) => ({ pris: a.pris, faktiskPris: a.pris, km: null, tittel: a.tittel || null, kmDiff: null, justering: 0 }));
     }
-    // Hvis nesten ingen har km-data, bruker vi alle rene (år-filteret holder dem i sjakk)
+  } else {
+    // Selgerens km ukjent – vis de tre rimeligste ujustert
+    ankere = rene.slice().sort((a, b) => a.pris - b.pris).slice(0, 3)
+      .map((a) => ({ pris: a.pris, faktiskPris: a.pris, km: a.km || null, tittel: a.tittel || null, kmDiff: null, justering: 0 }));
   }
 
-  const grunnlag = rene;
-  const gP = grunnlag.map((a) => a.pris).sort((x, y) => x - y);
+  _debug.antallAnkere = ankere.length;
+  _debug.kmJustert = kmJustert;
 
-  const snitt = Math.round(gP.reduce((s, p) => s + p, 0) / gP.length);
-  const median = Math.round(persentil(gP, 50));
+  // MARKEDSVERDI = snittet av ankerbilenes (km-justerte) priser.
+  // Med bare 1 anker er det den bilens justerte pris. Dette er der bilen
+  // realistisk omsettes, og der en aktør som Rebil kan by.
+  const ankerPriser = ankere.map((a) => a.pris).sort((x, y) => x - y);
+  const markedsverdi = Math.round(ankerPriser.reduce((s, p) => s + p, 0) / ankerPriser.length);
 
-  // MARKEDSVERDI = snittet av den nederste tredjedelen av annonsene.
-  // Dette er "bunn av markedet" – der bilen realistisk omsettes, og der en
-  // aktør som Rebil kan by. Snittet av en tredjedel (ikke bare laveste eller
-  // ett persentil) gir et stabilt tall som tåler én bortkastet lavannonse.
-  const tredjedel = Math.max(1, Math.round(gP.length / 3));
-  const bunn = gP.slice(0, tredjedel);
-  const nedreKlynge = Math.round(bunn.reduce((s, p) => s + p, 0) / bunn.length);
-  const lavest = gP[0];
-  const høyest = gP[gP.length - 1];
+  // Snitt/spenn fra HELE det rene grunnlaget (kontekst)
+  const alle = rene.map((a) => a.pris).sort((x, y) => x - y);
+  const snitt = Math.round(alle.reduce((s, p) => s + p, 0) / alle.length);
+  const median = Math.round(persentil(alle, 50));
+  const lavest = alle[0];
+  const høyest = alle[alle.length - 1];
 
-  // 4) Vurder selgerens egen pris mot markedet
+  // 4) Vurder selgerens egen pris mot markedsverdien (anker-basert)
   let vurdering = null;
   if (egenPris && egenPris > 0) {
     const p = Number(egenPris);
-    if (p > snitt * 1.1) vurdering = "over";
-    else if (p < nedreKlynge) vurdering = "under";
+    if (p > markedsverdi * 1.08) vurdering = "over";
+    else if (p < markedsverdi * 0.95) vurdering = "under";
     else vurdering = "riktig";
   }
 
   return {
-    antall: grunnlag.length,
-    antallTotalt: grunnlag.length,
-    kmVektet: kmVindu != null || kmJustert,
-    kmVindu: kmVindu,
-    kmJustert: kmJustert,
-    lavest, høyest, snitt, median, nedreKlynge,
+    ok: true,
+    antall: rene.length,               // hvor mange sammenlignbare totalt
+    antallAnkere: ankere.length,        // hvor mange vi baserer verdien på
+    fåBiler: ankere.length < 2,         // flagg: si tydelig at det er basert på få
+    ankere,                             // de faktiske bilene selgeren kan se
+    kmJustert,
+    kmSats: sats,
+    markedsverdi,
+    nedreKlynge: markedsverdi,          // bakoverkompat med frontend
+    snitt, median, lavest, høyest,
     egenPris: egenPris ? Number(egenPris) : null,
+    egenKm: egenKm || null,
     vurdering,
+    _debug,
   };
 }
 
