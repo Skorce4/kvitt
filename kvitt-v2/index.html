@@ -561,6 +561,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .anker .apris{text-align:right}
 .anker .apris .just{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--green-deep,#1E7A46)}
 .anker .apris .rå{font-size:11.5px;color:var(--ink-3);text-decoration:line-through}
+.anker-lenke{color:inherit;text-decoration:underline;text-decoration-color:rgba(47,158,95,.4);text-underline-offset:2px}.anker-lenke:hover{color:var(--green-deep,#1E7A46)}
 .fabanner{background:rgba(244,180,60,.1);border:1px solid rgba(244,180,60,.3);border-radius:10px;padding:11px 14px;font-size:13px;color:#8a5a00;margin:12px 0}
 .pris3-kort{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:4px}
 .pris3-kort.hoved{background:linear-gradient(135deg,rgba(55,196,111,.1),rgba(55,196,111,.03));border-color:rgba(55,196,111,.3)}
@@ -1180,7 +1181,7 @@ function render(r){
               :(a.kmDiff===0?'~samme km som din':((a.kmDiff>0?'+':'−')+Math.abs(Math.round(a.kmDiff/1000))+'k km vs. din'));
             const justerte=(a.justering&&a.justering!==0);
             return '<div class="anker"><span class="akm">'+kmTxt+'</span>'+
-              '<span class="ainfo">'+esc(a.tittel||'Sammenlignbar bil')+'<br>'+diffTxt+'</span>'+
+              '<span class="ainfo">'+(a.url?'<a href="'+esc(a.url)+'" target="_blank" rel="noopener" class="anker-lenke">'+esc(a.tittel||'Sammenlignbar bil')+'</a>':esc(a.tittel||'Sammenlignbar bil'))+'<br>'+diffTxt+'</span>'+
               '<span class="apris">'+(justerte?'<span class="rå">'+kr(a.faktiskPris)+'</span><br>':'')+'<span class="just">'+kr(a.pris)+'</span></span></div>';
           }).join('')+'</div>';
       }
@@ -1567,7 +1568,7 @@ function startPrissjekk(merke,modell,aar,egenPris){
         // Map AI-svaret til visningsformatet (samme som anker-metoden)
         const ank=(ed.ankere||[]).map(function(a){
           const kmDiff=(a.km!=null&&egenKm)?(a.km-egenKm):null;
-          return {pris:a.pris,faktiskPris:a.pris,km:a.km!=null?a.km:null,tittel:(a.tittel||'')+(a.hvorfor?' – '+a.hvorfor:''),kmDiff:kmDiff,justering:0};
+          return {pris:a.pris,faktiskPris:a.pris,km:a.km!=null?a.km:null,tittel:(a.tittel||'')+(a.hvorfor?' – '+a.hvorfor:''),url:a.url||null,kmDiff:kmDiff,justering:0};
         });
         let vurdering=null;
         if(egenPris){
