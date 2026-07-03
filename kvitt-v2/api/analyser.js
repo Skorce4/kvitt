@@ -17,19 +17,22 @@ export default async function handler(req, res) {
     const fwd = req.headers["x-forwarded-for"] || "";
     const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd).split(",")[0].trim() || req.socket?.remoteAddress || "ukjent";
 
-    const rl = await fetch(SUPABASE_URL + "/rest/v1/rpc/check_rate_limit", {
+    const rl = await fetch(SUPABASE_URL + "/rest/v1/rpc/check_limits", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "apikey": SUPABASE_ANON,
         "Authorization": "Bearer " + SUPABASE_ANON,
       },
-      body: JSON.stringify({ client_ip: clientIp, max_per_hour: 10 }),
+      body: JSON.stringify({ client_ip: clientIp, max_per_ip_hour: 10, max_global_hour: 300 }),
     });
     if (rl.ok) {
-      const allowed = await rl.json();
-      if (allowed === false) {
+      const status = await rl.json();
+      if (status === "ip") {
         return res.status(429).json({ error: "Du har sjekket mange annonser den siste timen. Prøv igjen om litt." });
+      }
+      if (status === "global") {
+        return res.status(429).json({ error: "Kvittn har uvanlig mange sjekker akkurat nå. Prøv igjen om noen minutter." });
       }
     }
     // Hvis rate-limit-sjekken feiler teknisk, lar vi forespørselen gå gjennom
@@ -69,10 +72,28 @@ Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Ikke bruk ekte linjes
 Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
 """${text}"""`;
 
+    // ── Cache-sjekk: samme annonse analysert nylig? Servér lagret svar. ──
+    // Sparer AI-kall (og penger) hvis noen spammer samme annonse.
+    const crypto = await import("node:crypto");
+    const cacheKey = crypto.createHash("sha256").update(text.trim().toLowerCase()).digest("hex").slice(0, 40);
+    try {
+      const cr = await fetch(SUPABASE_URL + "/rest/v1/rpc/get_cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON, "Authorization": "Bearer " + SUPABASE_ANON },
+        body: JSON.stringify({ k: cacheKey }),
+      });
+      if (cr.ok) {
+        const cached = await cr.json();
+        if (cached && cached.score != null) {
+          return res.status(200).json({ ...cached, _text: text, _cache: true });
+        }
+      }
+    } catch (e) { /* cache-miss eller teknisk feil: kjør normalt */ }
+
     const raw = await callClaude(apiKey, diagnosePrompt, 1400);
     const r = parseJson(raw);
 
-    return res.status(200).json({
+    const svar = {
       score: r.score,
       label: r.label,
       blurb: r.blurb,
@@ -80,11 +101,30 @@ Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
       banned: r.banned || [],
       reklamasjon: r.reklamasjon || null,
       modellsjekk: r.modellsjekk || [],
-      _text: text,
-    });
+    };
+
+    // Lagre i cache (uten _text – den er brukerspesifikk og legges på ved retur)
+    try {
+      await fetch(SUPABASE_URL + "/rest/v1/rpc/set_cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON, "Authorization": "Bearer " + SUPABASE_ANON },
+        body: JSON.stringify({ k: cacheKey, r: svar }),
+      });
+    } catch (e) { /* lagring feilet: ikke kritisk */ }
+
+    return res.status(200).json({ ...svar, _text: text });
   } catch (err) {
     console.error("Analyse-feil:", err);
-    return res.status(500).json({ error: "Klarte ikke å fullføre analysen.", detail: String(err && err.message || err) });
+    const m = String(err && err.message || err);
+    let brukervennlig = "Klarte ikke å fullføre analysen. Prøv igjen om et øyeblikk.";
+    if (/credit|billing|insufficient|payment|quota/i.test(m)) {
+      brukervennlig = "Tjenesten er midlertidig utilgjengelig (kapasitet). Prøv igjen senere.";
+    } else if (/ 429|rate|overloaded| 529/i.test(m)) {
+      brukervennlig = "Uvanlig mange sjekker akkurat nå. Vent et minutt og prøv igjen.";
+    } else if (/ 401| 403|api.?key|authentication/i.test(m)) {
+      brukervennlig = "Teknisk feil hos oss. Vi ser på det – prøv igjen senere.";
+    }
+    return res.status(500).json({ error: brukervennlig, detail: m });
   }
 }
 
