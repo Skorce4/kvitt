@@ -1581,7 +1581,7 @@ function startPrissjekk(merke,modell,aar,egenPris){
           ankere:ank,kmJustert:true,markedsverdi:ed.estimat,nedreKlynge:ed.estimat,
           lav:ed.lav,hoy:ed.hoy,begrunnelse:ed.begrunnelse||'',konfidens:ed.konfidens,
           egenPris:egenPris||null,egenKm:egenKm||null,vurdering:vurdering};
-        window.__prisVenter=false;oppdaterVisning();
+        window.__prisVenter=false;console.log('[Kvittn estimat]',JSON.stringify(ed._debug||{}));oppdaterVisning();
       }else{
         window.__prisGrunn=ed&&ed.grunn||null;console.log('[Kvittn estimat] falt tilbake:',ed&&(ed.grunn||ed.detail||''),JSON.stringify(ed&&ed._debug||{}));
         fallbackPrissjekk();
