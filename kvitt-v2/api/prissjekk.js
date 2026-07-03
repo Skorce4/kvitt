@@ -78,27 +78,39 @@ export default async function handler(req, res) {
   }
 }
 
-// Beriker annonser som mangler km: finner prisen som SYNLIG tekst i HTML
-// ("579 000 kr") og leser kilometerstanden som står like FØR den i samme
-// annonsekort ("2020 · 105 800 km · Plug-in Bensin · 81 km rekkevidde").
-// Virker uansett hvor JSON-blobben med prisene ligger i dokumentet.
-// Rekkevidde-tall ("82 km") har under 4 sifre og matches ikke.
+// Beriker annonser som mangler km. Strategi: STRIPP HTML-taggene først – da
+// kollapser kortet til ren tekst der alt står tett: "Peugeot 5008 GT 2020 ·
+// 85 000 km · Diesel · Automat 259 900 kr". Deretter finnes prisen som synlig
+// tekst, og kilometerstanden leses rett foran den i samme kort. Uten stripping
+// ligger det hundrevis av tegn markup mellom km og pris, og vinduet bommer.
+// Rekkevidde-tall ("82 km rekkevidde") lukes ut med eksplisitt vakt.
 function berikMedKm(html, annonser) {
   if (!html || !annonser || !annonser.length) return annonser;
-  const flat = html.replace(/[\u00a0\u202f]/g, " ");
+  const tekst = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[\u00a0\u202f]/g, " ")
+    .replace(/\s+/g, " ");
   const cursor = {}; // flere biler kan ha samme pris – søk videre fra forrige treff
   for (const a of annonser) {
     if (a.km) continue;
     const prisFmt = String(a.pris).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    const fra = cursor[prisFmt] || 0;
-    let idx = flat.indexOf(prisFmt + " kr", fra);
-    if (idx === -1) idx = flat.indexOf(prisFmt + ",-", fra);
+    const kandidater = [prisFmt + " kr", prisFmt + ",-", "kr " + prisFmt];
+    let idx = -1;
+    for (const k of kandidater) {
+      idx = tekst.indexOf(k, cursor[prisFmt] || 0);
+      if (idx !== -1) break;
+    }
     if (idx === -1) continue;
     cursor[prisFmt] = idx + 1;
-    const bak = flat.slice(Math.max(0, idx - 400), idx);
-    const treff = [...bak.matchAll(/(\d{1,3}(?: \d{3})+|\d{5,7})\s*km\b/gi)];
+    const kmRe = /(\d{1,3}(?: \d{3})+|\d{5,7}) ?km\b(?! *rekkevidde)/gi;
+    // Primært: km står FØR prisen i kortet (tittel · år · km · drivstoff · pris)
+    let treff = [...tekst.slice(Math.max(0, idx - 260), idx).matchAll(kmRe)];
+    // Fallback: enkelte oppsett har pris først
+    if (!treff.length) treff = [...tekst.slice(idx, idx + 180).matchAll(kmRe)];
     if (treff.length) {
-      const km = parseInt(treff[treff.length - 1][1].replace(/\s/g, ""), 10);
+      const km = parseInt(treff[treff.length - 1][1].replace(/ /g, ""), 10);
       if (km >= 1000 && km <= 500000) a.km = km;
     }
   }
