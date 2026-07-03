@@ -1191,17 +1191,19 @@ function render(r){
         const farge=p.vurdering==='over'?'warn':'ok';
         banner='<div class="prisbanner '+farge+'"><div class="pb-din">Din pris: '+kr(p.egenPris)+'</div><p>'+tekst+'</p></div>';
       }
-      const kmNote=p.kmJustert?' Prisene er justert for kilometerforskjell mot din bil.':'';
-      return head+'<p class="lead">Fant '+p.antall+' sammenlignbar'+(p.antall===1?' bil':'e biler')+' på FINN akkurat nå (vrak og skadede filtrert bort).'+kmNote+'</p>'+
+      const kmNote=p.kilde==='ai'?' Vurdert av Kvitt\u2019ns prismotor mot aktive FINN-annonser.':(p.kmJustert?' Prisene er justert for kilometerforskjell mot din bil.':'');
+      const begrunnelse=p.begrunnelse?'<p class="lead" style="margin-top:10px;font-style:italic">\u00ab'+esc(p.begrunnelse)+'\u00bb</p>':'';
+      return head+'<p class="lead">Fant '+p.antall+' sammenlignbar'+(p.antall===1?' bil':'e biler')+' p\u00e5 FINN akkurat n\u00e5 (vrak og skadede filtrert bort).'+kmNote+'</p>'+
         fabanner+banner+
         '<div class="pris3">'+
           '<div class="pris3-kort hoved">'+
             '<span class="p3-lab">Markedsverdi</span>'+
             '<span class="p3-tall">'+kr(markedsverdi)+'</span>'+
-            '<span class="p3-note">'+(p.antallAnkere===1?'Basert på bilen nærmest din':'Snitt av de nærmeste, justert for km')+'</span>'+
+            '<span class="p3-note">'+(p.kilde==='ai'?(p.lav&&p.hoy?'Spenn: '+kr(p.lav)+' \u2013 '+kr(p.hoy):'Basert p\u00e5 de n\u00e6rmeste bilene'):(p.antallAnkere===1?'Basert p\u00e5 bilen n\u00e6rmest din':'Snitt av de n\u00e6rmeste, justert for km'))+'</span>'+
           '</div>'+
           diffBlokk+
         '</div>'+
+        begrunnelse+
         ankerHtml+
         '<p class="simnote">Markedsverdien bygger på bilene nærmest din i kilometerstand, justert for forskjellen. Priser hentet fra aktive FINN-annonser, ikke en garanti for hva bilen selges for.</p>';
     }});
@@ -1536,15 +1538,49 @@ function startPrissjekk(merke,modell,aar,egenPris){
   const kmMatch=txt.match(/(?:kilometerstand|km\b)[:\s]*(\d[\d\s]{2,8})/i)||txt.match(/(\d[\d\s]{2,8})\s*km\b/i);
   const egenKm=kmMatch?parseInt(kmMatch[1].replace(/\s/g,''),10):null;
   window.__prisVenter=true;oppdaterVisning();
-  fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({merke:merke,modell:modellSøk,aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})})
-    .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
-      if(pd&&pd.ok&&pd.antall>=1){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
-      else{window.__prisVenter=false;window.__prisTom=true;
-        // Debug: se i konsollen nøyaktig hvor prissjekken stoppet
-        console.log('[Kvittn prissjekk] tomt resultat:',JSON.stringify(pd&&(pd._debug||pd),null,2));
-        oppdaterVisning();}
-    }).catch((e)=>{window.__prisVenter=false;window.__prisTom=true;console.log('[Kvittn prissjekk] feil:',e);oppdaterVisning();});
+
+  // Payload til begge API-ene
+  const payload={merke:merke,modell:modellSøk,aar:aarNum[0],egenPris:egenPris,egenKm:egenKm};
+
+  // Gammel algoritmisk prissjekk – brukes som FALLBACK hvis AI-estimatet feiler
+  const fallbackPrissjekk=function(){
+    fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)})
+      .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
+        if(pd&&pd.ok&&pd.antall>=1){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
+        else{window.__prisVenter=false;window.__prisTom=true;
+          console.log('[Kvittn prissjekk] tomt resultat:',JSON.stringify(pd&&(pd._debug||pd),null,2));
+          oppdaterVisning();}
+      }).catch((e)=>{window.__prisVenter=false;window.__prisTom=true;console.log('[Kvittn prissjekk] feil:',e);oppdaterVisning();});
+  };
+
+  // PRIMÆR: AI-estimat – vurderer sammenlignbare biler som en innkjøper
+  fetch('/api/estimat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({...payload,kontekst:(txt.split(/\n/)[0]||'')+' '+txt.slice(0,200)})})
+    .then(async(er)=>{const ed=await er.json().catch(()=>({}));
+      if(ed&&ed.ok&&typeof ed.estimat==='number'){
+        // Map AI-svaret til visningsformatet (samme som anker-metoden)
+        const ank=(ed.ankere||[]).map(function(a){
+          const kmDiff=(a.km!=null&&egenKm)?(a.km-egenKm):null;
+          return {pris:a.pris,faktiskPris:a.pris,km:a.km!=null?a.km:null,tittel:(a.tittel||'')+(a.hvorfor?' – '+a.hvorfor:''),kmDiff:kmDiff,justering:0};
+        });
+        let vurdering=null;
+        if(egenPris){
+          if(egenPris>ed.estimat*1.08)vurdering='over';
+          else if(egenPris<ed.estimat*0.95)vurdering='under';
+          else vurdering='riktig';
+        }
+        window.__pris={ok:true,kilde:'ai',antall:ed.antallVurdert||ank.length,antallAnkere:ed.antallBrukt||ank.length,
+          fåBiler:(ed.antallBrukt||ank.length)<2||ed.konfidens==='lav',
+          ankere:ank,kmJustert:true,markedsverdi:ed.estimat,nedreKlynge:ed.estimat,
+          lav:ed.lav,hoy:ed.hoy,begrunnelse:ed.begrunnelse||'',konfidens:ed.konfidens,
+          egenPris:egenPris||null,egenKm:egenKm||null,vurdering:vurdering};
+        window.__prisVenter=false;oppdaterVisning();
+      }else{
+        console.log('[Kvittn estimat] falt tilbake:',ed&&(ed.grunn||ed.detail||''));
+        fallbackPrissjekk();
+      }
+    }).catch(function(e){console.log('[Kvittn estimat] feil, faller tilbake:',e);fallbackPrissjekk();});
 }
 function oppdaterPrisSteg(){ oppdaterVisning(); }
 function oppdaterVegvesenSteg(){ oppdaterVisning(); }
