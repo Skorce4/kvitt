@@ -546,6 +546,16 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .pg-rad{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
 /* TRE-TALL PRISVISNING */
 .pris3{display:flex;flex-direction:column;gap:12px;margin:18px 0}
+/* Ankerbiler – de faktiske sammenlignbare bilene */
+.ankere{margin:16px 0 4px;display:flex;flex-direction:column;gap:8px}
+.ankere-tit{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+.anker{display:flex;align-items:center;gap:12px;background:var(--paper-0,#fff);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+.anker .akm{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;min-width:74px;color:var(--ink)}
+.anker .ainfo{flex:1;font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.anker .apris{text-align:right}
+.anker .apris .just{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--green-deep,#1E7A46)}
+.anker .apris .rå{font-size:11.5px;color:var(--ink-3);text-decoration:line-through}
+.fabanner{background:rgba(244,180,60,.1);border:1px solid rgba(244,180,60,.3);border-radius:10px;padding:11px 14px;font-size:13px;color:#8a5a00;margin:12px 0}
 .pris3-kort{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:4px}
 .pris3-kort.hoved{background:linear-gradient(135deg,rgba(55,196,111,.1),rgba(55,196,111,.03));border-color:rgba(55,196,111,.3)}
 .p3-lab{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
@@ -1114,10 +1124,8 @@ function render(r){
       if(!p){
         return head+'<p class="lead">Sammenligner mot tilsvarende biler på FINN akkurat nå...</p><div class="tekstlaster"><span class="tspin"></span><span>Henter markedspriser</span></div>';
       }
-      const kr=(n)=>n?n.toLocaleString('nb-NO')+' kr':'–';
-      // TRE tall å forholde seg til: markedsverdi, markedssnitt, avstand fra din pris.
-      const markedsverdi=p.nedreKlynge;   // realistisk salgspris (billigste seriøse-nivå)
-      const markedssnitt=p.snitt;          // hva markedet i snitt tar
+      const kr=(n)=>(n||n===0)?Number(n).toLocaleString('nb-NO')+' kr':'–';
+      const markedsverdi=p.markedsverdi!=null?p.markedsverdi:p.nedreKlynge;
       // Differanse: din pris mot markedsverdien
       let diffBlokk='';
       if(p.egenPris){
@@ -1133,6 +1141,24 @@ function render(r){
           '<span class="p3d-tekst">'+diffTekst+'</span>'+
         '</div>';
       }
+      // "Basert på få"-banner når vi bare har 1 ankerbil
+      let fabanner='';
+      if(p.fåBiler){
+        fabanner='<div class="fabanner">Det finnes få helt like biler ute akkurat nå, så dette bygger på '+(p.antallAnkere===1?'én sammenlignbar bil':p.antallAnkere+' sammenlignbare biler')+'. Bruk det som en pekepinn, ikke en fasit.</div>';
+      }
+      // Ankerbil-rader (de faktiske bilene, km-justert)
+      let ankerHtml='';
+      if(p.ankere&&p.ankere.length){
+        ankerHtml='<div class="ankere"><div class="ankere-tit">Nærmest din bil'+(p.egenKm?' ('+kr(p.egenKm).replace(' kr',' km')+')':'')+'</div>'+
+          p.ankere.map((a)=>{
+            const kmTxt=a.km!=null?Number(a.km).toLocaleString('nb-NO')+' km':'km ukjent';
+            const diffTxt=(a.kmDiff!=null&&a.kmDiff!==0)?(a.kmDiff>0?'+':'−')+Math.abs(Math.round(a.kmDiff/1000))+'k km':'~samme km';
+            const justerte=(a.justering&&a.justering!==0);
+            return '<div class="anker"><span class="akm">'+kmTxt+'</span>'+
+              '<span class="ainfo">'+esc(a.tittel||'Sammenlignbar bil')+'<br>'+diffTxt+' vs. din</span>'+
+              '<span class="apris">'+(justerte?'<span class="rå">'+kr(a.faktiskPris)+'</span><br>':'')+'<span class="just">'+kr(a.pris)+'</span></span></div>';
+          }).join('')+'</div>';
+      }
       // Vurderingsbanner
       let banner='';
       if(p.vurdering&&p.egenPris){
@@ -1142,22 +1168,19 @@ function render(r){
         const farge=p.vurdering==='over'?'warn':'ok';
         banner='<div class="prisbanner '+farge+'"><div class="pb-din">Din pris: '+kr(p.egenPris)+'</div><p>'+tekst+'</p></div>';
       }
-      return head+'<p class="lead">Basert på '+p.antall+' sammenlignbare biler på FINN (vrak og skadede filtrert bort).'+(p.kmJustert?' Få biler lå nær din kilometerstand, så prisene er justert for km-forskjell.':p.kmVindu?' Kilometerstand innenfor '+(p.kmVindu/1000)+' 000 km av din.':'')+'</p>'+
-        banner+
+      const kmNote=p.kmJustert?' Prisene er justert for kilometerforskjell mot din bil.':'';
+      return head+'<p class="lead">Fant '+p.antall+' sammenlignbar'+(p.antall===1?' bil':'e biler')+' på FINN akkurat nå (vrak og skadede filtrert bort).'+kmNote+'</p>'+
+        fabanner+banner+
         '<div class="pris3">'+
           '<div class="pris3-kort hoved">'+
             '<span class="p3-lab">Markedsverdi</span>'+
             '<span class="p3-tall">'+kr(markedsverdi)+'</span>'+
-            '<span class="p3-note">Her konkurrerer du – det kjøpere ser først</span>'+
-          '</div>'+
-          '<div class="pris3-kort">'+
-            '<span class="p3-lab">Markedssnitt</span>'+
-            '<span class="p3-tall">'+kr(markedssnitt)+'</span>'+
-            '<span class="p3-note">Hva markedet i snitt tar</span>'+
+            '<span class="p3-note">'+(p.antallAnkere===1?'Basert på bilen nærmest din':'Snitt av de nærmeste, justert for km')+'</span>'+
           '</div>'+
           diffBlokk+
         '</div>'+
-        '<p class="simnote">Markedsverdien er der de billigste seriøse annonsene ligger – det kjøpere ser først. Snittet viser hva markedet i snitt tar. Priser hentet fra aktive FINN-annonser, ikke en garanti.</p>';
+        ankerHtml+
+        '<p class="simnote">Markedsverdien bygger på bilene nærmest din i kilometerstand, justert for forskjellen. Priser hentet fra aktive FINN-annonser, ikke en garanti for hva bilen selges for.</p>';
     }});
   }
   // Offisielle data fra Statens vegvesen (kun hvis reg.nr fantes i teksten)
@@ -1493,9 +1516,12 @@ function startPrissjekk(merke,modell,aar,egenPris){
   fetch('/api/prissjekk',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({merke:merke,modell:modellSøk,aar:aarNum[0],egenPris:egenPris,egenKm:egenKm})})
     .then(async(pr)=>{const pd=await pr.json().catch(()=>({}));
-      if(pd&&pd.ok&&pd.antall>=3){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
-      else{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();}
-    }).catch(()=>{window.__prisVenter=false;window.__prisTom=true;oppdaterVisning();});
+      if(pd&&pd.ok&&pd.antall>=1){window.__pris=pd;window.__prisVenter=false;oppdaterVisning();}
+      else{window.__prisVenter=false;window.__prisTom=true;
+        // Debug: se i konsollen nøyaktig hvor prissjekken stoppet
+        console.log('[Kvittn prissjekk] tomt resultat:',JSON.stringify(pd&&(pd._debug||pd),null,2));
+        oppdaterVisning();}
+    }).catch((e)=>{window.__prisVenter=false;window.__prisTom=true;console.log('[Kvittn prissjekk] feil:',e);oppdaterVisning();});
 }
 function oppdaterPrisSteg(){ oppdaterVisning(); }
 function oppdaterVegvesenSteg(){ oppdaterVisning(); }
