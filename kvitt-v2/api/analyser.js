@@ -95,7 +95,7 @@ ${refListe}
 Regler for bruk:
 - I "skadeRisiko": ta med områdene over. Bruk områdenavnet og kostnaden UENDRET. For sannsynlighet: bruk basisrisikoen som utgangspunkt, men SETT NED mot 3-5% hvis annonsen åpent opplyser om forholdet (åpenhet reduserer krav). Ikke øk over basis.
 - I "reklamasjon.eksponering_nok": summer kostnaden for de områdene som er UDEKKET i annonsen (rund til nærmeste 1000). Er alt åpent opplyst, sett et lavt beløp eller null.
-- I "reklamasjon.begrunnelse": referer til de konkrete postene og at tallene er basert på Kvitt'ns referansedatabase (bransjeanslag). Nevn hvilke poster som er udekket.
+- I "reklamasjon.begrunnelse": referer til de konkrete postene. Skriv navnet nøyaktig som «Kvitt'ns referansedatabase» (aldri «Kvitts») når du nevner kilden. Nevn hvilke poster som er udekket.
 
 Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Ikke bruk ekte linjeskift inne i verdiene. Struktur:
 {"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall, sum av UDEKKEDE referanseposter>,"begrunnelse":"<hvilke referanseposter er udekket og driver summen>"},"skadeRisiko":[{"omrade":"<fra referanselisten>","sannsynlighet":<fra referanse, evt. nedjustert ved åpenhet>,"dekket":<true hvis annonsen opplyser om det, ellers false>,"hvorfor":"<én kort setning>"}],"modellsjekk":[{"punkt":"<kjent svakhet for denne modellen>","hvorfor":"<hvorfor selger bør sjekke/opplyse om dette>"}]}
