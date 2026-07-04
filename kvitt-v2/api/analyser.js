@@ -2,8 +2,6 @@
 // Kaller Claude (holder API-nøkkelen hemmelig) OG øker teller i Supabase.
 // Frontend kaller /api/analyser – aldri Anthropic eller Supabase direkte.
 
-import { byggReferanse } from "./referanse.js";
-
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Bruk POST." });
 
@@ -54,16 +52,20 @@ export default async function handler(req, res) {
     // Bygg forankrede reklamasjonsposter FØR AI-kallet. Hvert kronebeløp og hver
     // prosent stammer herfra (api/referanse.js), ikke fra språkmodellen. AI-en
     // får listen og markerer bare hvilke poster som er UDEKKET i annonsen.
+    // Referansemotor lastes DYNAMISK og valgfritt – feiler den, kjører analysen
+    // uansett videre (ingen 500). Dette isolerer referanse.js fra hovedflyten.
     let referanse = { poster: [] };
     let refListe = "";
     try {
-      const bildata = trekkBildata(text);
-      referanse = byggReferanse(bildata);
-      refListe = referanse.poster
-        .map((p, i) => (i + 1) + ". " + p.omrade + " | typisk kostnad " + p.kostNok.toLocaleString("nb-NO") + " kr | basisrisiko " + p.sannsynlighet + "% | " + p.hvorfor)
-        .join("\n");
+      const mod = await import("./referanse.js");
+      if (mod && typeof mod.byggReferanse === "function") {
+        referanse = mod.byggReferanse(trekkBildata(text));
+        refListe = referanse.poster
+          .map((p, i) => (i + 1) + ". " + p.omrade + " | typisk kostnad " + p.kostNok.toLocaleString("nb-NO") + " kr | basisrisiko " + p.sannsynlighet + "% | " + p.hvorfor)
+          .join("\n");
+      }
     } catch (e) {
-      console.error("Referanse-feil (ikke-kritisk):", e);
+      console.error("Referanse utilgjengelig, kjører uten:", e && e.message);
     }
 
     // RASKT diagnose-kall. Returnerer kun score + flags + banned + reklamasjon.
@@ -85,7 +87,7 @@ VIKTIG om risikovurderingen:
 Hver subjektiv frase du flagger (f.eks. «strøken», «meget godt vedlikeholdt», «går som ei kule», «pent brukt», «alt man kan ønske seg») skal du føre opp i listen "banned". Denne listen brukes senere til å skrive en forbedret annonse uten disse frasene, så vær nøyaktig.
 
 MODELLSVAKHETER: Basert på bilens merke, modell, årgang og motor/girkasse, list kjente svakheter eller vanlige feilpunkter for nettopp denne modellen (f.eks. DSG-mekatronikk på VW, EGR/partikkelfilter på visse dieselmotorer, kjedestrekk, kjente rustpunkter). Dette hjelper selgeren være åpen om det og unngå reklamasjon. Vær konkret og faglig – kun reelle kjente svakheter, ikke gjett vilt. Kjenner du ingen spesifikke svakheter, returner tom liste.
-
+${refListe ? `
 VALIDERTE REFERANSETALL – SVÆRT VIKTIG:
 Nedenfor er en liste over reklamasjonsområder for nettopp denne bilen, med FASTE kostnads- og risikotall hentet fra Kvitt'ns referansedatabase. Du skal IKKE finne på egne kronebeløp eller prosenter – du skal BRUKE disse tallene. Din jobb er å vurdere, for hvert område, om annonsen ALLEREDE opplyser åpent om forholdet (da er risikoen lav – kjøper er informert) eller om det er UDEKKET (da gjelder basisrisikoen).
 
@@ -95,7 +97,7 @@ ${refListe}
 Regler for bruk:
 - I "skadeRisiko": ta med områdene over. Bruk områdenavnet og kostnaden UENDRET. For sannsynlighet: bruk basisrisikoen som utgangspunkt, men SETT NED mot 3-5% hvis annonsen åpent opplyser om forholdet (åpenhet reduserer krav). Ikke øk over basis.
 - I "reklamasjon.eksponering_nok": summer kostnaden for de områdene som er UDEKKET i annonsen (rund til nærmeste 1000). Er alt åpent opplyst, sett et lavt beløp eller null.
-- I "reklamasjon.begrunnelse": referer til de konkrete postene. Skriv navnet nøyaktig som «Kvitt'ns referansedatabase» (aldri «Kvitts») når du nevner kilden. Nevn hvilke poster som er udekket.
+- I "reklamasjon.begrunnelse": referer til de konkrete postene. Skriv navnet nøyaktig som «Kvitt'ns referansedatabase» (aldri «Kvitts») når du nevner kilden. Nevn hvilke poster som er udekket.` : ''}
 
 Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Ikke bruk ekte linjeskift inne i verdiene. Struktur:
 {"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall, sum av UDEKKEDE referanseposter>,"begrunnelse":"<hvilke referanseposter er udekket og driver summen>"},"skadeRisiko":[{"omrade":"<fra referanselisten>","sannsynlighet":<fra referanse, evt. nedjustert ved åpenhet>,"dekket":<true hvis annonsen opplyser om det, ellers false>,"hvorfor":"<én kort setning>"}],"modellsjekk":[{"punkt":"<kjent svakhet for denne modellen>","hvorfor":"<hvorfor selger bør sjekke/opplyse om dette>"}]}
@@ -130,15 +132,16 @@ Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
       flags: r.flags,
       banned: r.banned || [],
       reklamasjon: r.reklamasjon || null,
-      skadeRisiko: flettReferanse(r.skadeRisiko, referanse.poster),
-      _refKilde: "Kvitt'n referansedatabase (bransjeanslag)",
+      skadeRisiko: (referanse.poster && referanse.poster.length)
+        ? flettReferanse(r.skadeRisiko, referanse.poster)
+        : (Array.isArray(r.skadeRisiko) ? r.skadeRisiko.slice(0, 4) : []),
       modellsjekk: r.modellsjekk || [],
     };
-    // GARANTI: kronebeløpet skal ALLTID være sum av validerte, udekkede poster –
-    // aldri et fritt AI-tall. Overstyr det AI-en måtte ha satt.
-    const validertSum = beregnEksponering(svar.skadeRisiko);
-    if (svar.reklamasjon) {
-      svar.reklamasjon.eksponering_nok = validertSum;
+    // GARANTI: når referansen finnes, skal kronebeløpet være sum av validerte,
+    // udekkede poster – aldri et fritt AI-tall. Uten referanse beholdes AI-tallet.
+    if (referanse.poster && referanse.poster.length && svar.reklamasjon) {
+      svar._refKilde = "Kvitt'n referansedatabase (bransjeanslag)";
+      svar.reklamasjon.eksponering_nok = beregnEksponering(svar.skadeRisiko);
       svar.reklamasjon._validert = true;
     }
 
