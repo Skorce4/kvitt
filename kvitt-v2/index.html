@@ -379,6 +379,21 @@ footer .footer-legal{padding:0 24px 28px;justify-content:center;border-top:1px s
 .learn-link .ll-txt span{font-size:13px;color:var(--ink2)}
 .learn-link .ll-arr{width:20px;height:20px;flex:none;transition:transform .18s}
 .learn-link:hover .ll-arr{transform:translateX(3px)}
+.ansvar{display:flex;gap:10px;align-items:flex-start;background:rgba(15,29,51,.05);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;margin:0 0 16px;font-size:13px;line-height:1.55;color:var(--ink2,#4a5568)}
+.ansvar svg{flex:none;margin-top:1px}
+.skader{margin-top:16px}
+.sk-tit{margin-bottom:10px;color:var(--ink2,#4a5568)}
+.sk-row{margin-bottom:13px}
+.sk-top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
+.sk-top b{font-family:'Space Grotesk';color:#b8860b}
+.sk-bar{height:7px;background:var(--surface2,#eef1f6);border-radius:4px;overflow:hidden}
+.sk-bar i{display:block;height:100%;background:linear-gradient(90deg,#f4b43c,#e09a1f);border-radius:4px}
+.sk-why{font-size:12.5px;color:var(--ink3,#7a869a);margin-top:4px}
+.sk-kost{font-size:12px;color:var(--ink3,#7a869a);margin-left:8px;font-weight:400}
+.sk-kilde{display:block;font-size:11px;color:var(--ink3,#9aa5b5);margin-top:3px;font-style:italic}
+.sk-dek{color:#2f9e5f;font-weight:600}
+.sk-row.dekket .sk-bar i{background:#8fbf9f}
+.sk-row.dekket{opacity:.72}
 .subpage{display:none}
 body.sub-sjekker .home-only,body.sub-reklamasjon .home-only{display:none!important}
 body.sub-sjekker #page-sjekker{display:block}
@@ -657,6 +672,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .wstep .body{flex:1}
 @media(prefers-reduced-motion:reduce){*:not(.scan-glass):not(.scan-warn),*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.sr,.rv{opacity:1;transform:none}.scan-glass,.scan-warn{animation-duration:5.2s!important;animation-iteration-count:infinite!important}}
 </style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Er Kvitt\u2019n gratis?","acceptedAnswer":{"@type":"Answer","text":"Ja. Lim inn annonsen din, s\u00e5 f\u00e5r du analysen. Ingen innlogging, ingenting \u00e5 betale."}},{"@type":"Question","name":"Hva betyr trygghetsscoren?","acceptedAnswer":{"@type":"Answer","text":"Den sier hvor godt annonsen din beskytter deg mot at kj\u00f8peren kommer tilbake og krever penger etter salget."}},{"@type":"Question","name":"Fjerner dette reklamasjonsansvaret mitt?","acceptedAnswer":{"@type":"Answer","text":"Nei. Ved privatsalg har du opplysningsplikt og et visst ansvar i to \u00e5r. Kvitt\u2019n hjelper deg \u00e5 opplyse riktig og ta gode forbehold."}},{"@type":"Question","name":"Hvor treffsikre er tallene?","acceptedAnswer":{"@type":"Answer","text":"Score, kronebel\u00f8p og prosenter er kvalifiserte anslag \u2013 beslutningsst\u00f8tte, ikke garanti."}}]}</script>
 </head>
 <body>
 
@@ -798,9 +814,11 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
     <details><summary>Er Kvitt’n gratis?</summary><p>Ja. Lim inn annonsen din, så får du analysen. Ingen innlogging, ingenting å betale.</p></details>
     <details><summary>Hva betyr trygghetsscoren?</summary><p>Den sier hvor godt annonsen din beskytter deg mot at kjøperen kommer tilbake og krever penger etter salget. Høyere score betyr færre åpne hull.</p></details>
     <details><summary>Fjerner dette reklamasjonsansvaret mitt?</summary><p>Nei. Ved privatsalg har du opplysningsplikt og et visst ansvar i to år, og «solgt som den er» fritar deg ikke helt. Kvitt’n hjelper deg å opplyse riktig og ta gode forbehold.</p></details>
+    <details><summary>Hvor treffsikre er tallene?</summary><p>Score, kronebeløp og prosenter er kvalifiserte anslag basert på annonsen din, kjente modellsvakheter og aktive FINN-annonser – ikke fasit. Bruk dem som beslutningsstøtte, ikke som garanti.</p></details>
+    <details><summary>Hvorfor står det en kronesum ved reklamasjonsrisikoen?</summary><p>Summen anslår hva de konkrete hullene i annonsen typisk kan koste ved et krav. Under summen ser du «Hvorfor denne summen?» som forklarer regnestykket.</p></details>
+    <details><summary>Lagrer dere annonsen min?</summary><p>Analysen kjøres maskinelt for å gi deg rapporten. Vi selger ikke innholdet ditt og bruker det ikke til noe annet enn å levere tjenesten.</p></details>
     <details><summary>Hva om jeg heller vil slippe hele ansvaret?</summary><p>Da kan du selge til en profesjonell aktør, som overtar reklamasjonsansvaret. Du får som regel litt mindre betalt, men slipper risiko og bryderi.</p></details>
   </div>
-  <div class="disc">Kvitt’n gir generell informasjon, ikke juridisk rådgivning. Ved privatsalg gjelder kjøpsloven (ikke forbrukerkjøpsloven). Du har opplysningsplikt om kjente feil, og «solgt som den er» fritar deg ikke for ansvar hvis du har holdt tilbake informasjon. Ved tvil, kontakt en jurist.</div>
 </div></section>
 
 <!-- ===== UNDERSIDE: Hva Kvitt’n sjekker ===== -->
@@ -872,7 +890,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <span class="lbl">Sjekk annonsen før du selger · Analysen lagres ikke</span>
 </div>
 <div class="row footer-legal">
-  <span>© 2026 Arian Nicolai Malmo Jakobsen. Alle rettigheter reservert.</span>
+  <span>© 2026 Arian Nicolai Malmo Jakobsen. Alle rettigheter reservert. Kvitt’n gir generell informasjon og veiledende anslag, ikke juridisk rådgivning – bruk skjer på eget ansvar.</span>
 </div></footer>
 
 
@@ -1129,9 +1147,21 @@ function render(r){
       '<div class="simcard">'+
         '<div class="simrow"><span class="simlab">Sannsynlig utfall</span><span class="simval" style="color:'+utfCol+'">'+esc(utf)+'</span></div>'+
         '<div class="simrow"><span class="simlab">Estimert eksponering</span><span class="simbig" style="color:'+utfCol+'">'+esc(kr)+'</span></div>'+
+        '<div class="simlab" style="margin-top:14px;font-weight:600;color:var(--ink)">Hvorfor denne summen?</div>'+
         '<p class="simwhy">'+esc(rk.begrunnelse||'')+'</p>'+
+        (rk._validert?'<p class="sk-kilde" style="margin-top:6px">Summen er beregnet fra Kvitt\u2019ns referansedatabase \u2013 sum av de udekkede postene under, ikke et fritt anslag.</p>':'')+
       '</div>'+
-      '<p class="simnote">Veiledende anslag, ikke juridisk rådgivning. Reelt utfall avhenger av dokumentasjon og forhandling.</p>'});
+      (function(){
+        const sr=Array.isArray(r.skadeRisiko)?r.skadeRisiko.filter(function(s){return s&&s.omrade&&s.sannsynlighet;}):[];
+        if(!sr.length)return '';
+        return '<div class="skader"><div class="sk-tit lbl">Sannsynlige reklamasjonsomr\u00e5der (ansl\u00e5tt risiko innen 2 \u00e5r)</div>'+
+          sr.map(function(s){var p=Math.min(90,Math.max(4,Math.round(s.sannsynlighet)));
+            var dek=s.dekket?'<span class="sk-dek">\u2713 opplyst i annonsen</span>':'';
+            var kilde=s.kilde?'<span class="sk-kilde">Kilde: '+esc(s.kilde)+'</span>':'';
+            var kost=s.kostNok?'<span class="sk-kost">~'+Number(s.kostNok).toLocaleString('nb-NO')+' kr</span>':'';
+            return '<div class="sk-row'+(s.dekket?' dekket':'')+'"><div class="sk-top"><span>'+esc(s.omrade)+kost+'</span><b>'+p+' %</b></div><div class="sk-bar"><i style="width:'+p+'%"></i></div><p class="sk-why">'+esc(s.hvorfor||'')+' '+dek+'</p>'+kilde+'</div>';}).join('')+'</div>';
+      })()+
+      '<p class="simnote">Veiledende anslag basert p\u00e5 kjente modellsvakheter, bilens alder/km og hullene i annonsen \u2013 ikke en garanti eller juridisk r\u00e5dgivning. Reelt utfall avhenger av dokumentasjon og forhandling.</p>'});
   }
   const laster=r._laster;
   const spinner='<div class="tekstlaster"><span class="tspin"></span><span>Skriver forbedret tekst...</span></div>';
@@ -1364,6 +1394,7 @@ function visPanel(){
   const scoreHtml=s0.render?s0.render():s0.html;
   document.getElementById('dashView').innerHTML=
     '<div class="panel-to">'+
+      '<div class="ansvar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#7a869a" stroke-width="2"/><path d="M12 8v5M12 16h.01" stroke="#7a869a" stroke-width="2" stroke-linecap="round"/></svg><span><b>Kvitt\u2019n gir generell informasjon, ikke juridisk r\u00e5dgivning.</b> Analysen er veiledende anbefalinger \u2013 du er selv ansvarlig for eget salg og egne opplysninger. Ved privatsalg gjelder kj\u00f8psloven, og du har opplysningsplikt om kjente feil. Ved tvil, kontakt en jurist.</span></div>'+
       '<div class="panel-v">'+
         '<div class="diag-kort" style="--acc-farge:'+WIZ.col+'">'+
           '<div class="diag-hode"><span class="acc-ic">01</span><span class="acc-midt"><span class="acc-tittel">Trygghetsdiagnose</span><span class="acc-tekst">'+esc(WIZ.label||'')+'</span></span><span class="acc-tall" style="color:'+WIZ.col+'">'+WIZ.score+'</span></div>'+
