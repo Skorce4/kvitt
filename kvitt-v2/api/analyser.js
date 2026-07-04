@@ -91,7 +91,7 @@ Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
       }
     } catch (e) { /* cache-miss eller teknisk feil: kjør normalt */ }
 
-    const raw = await callClaude(apiKey, diagnosePrompt, 1400);
+    const raw = await callClaude(apiKey, diagnosePrompt, 2400);
     const r = parseJson(raw);
 
     const svar = {
@@ -170,6 +170,24 @@ function parseJson(raw) {
   try {
     let cleaned = escapeControlInStrings(t).replace(/,\s*([}\]])/g, "$1");
     return JSON.parse(cleaned);
+  } catch (e) {}
+
+  // Forsøk 4: JSON kan være AVKUTTET (max_tokens nådd). Prøv å reparere ved å
+  // kutte til siste komplette felt og lukke åpne strukturer. Redder en delvis
+  // analyse i stedet for å feile helt.
+  try {
+    let s = escapeControlInStrings(t);
+    // Kutt av et halvt siste felt: gå tilbake til siste "}" eller '"' som avslutter en verdi
+    const sisteHel = Math.max(s.lastIndexOf("}"), s.lastIndexOf("]"));
+    if (sisteHel > 0) s = s.slice(0, sisteHel + 1);
+    // Tell og lukk ubalanserte { [ 
+    const openCurly = (s.match(/{/g) || []).length, closeCurly = (s.match(/}/g) || []).length;
+    const openSq = (s.match(/\[/g) || []).length, closeSq = (s.match(/\]/g) || []).length;
+    s = s.replace(/,\s*$/, "");
+    for (let i = 0; i < openSq - closeSq; i++) s += "]";
+    for (let i = 0; i < openCurly - closeCurly; i++) s += "}";
+    s = s.replace(/,\s*([}\]])/g, "$1");
+    return JSON.parse(s);
   } catch (e) {}
 
   // Siste utvei: kast videre med litt kontekst for logging
