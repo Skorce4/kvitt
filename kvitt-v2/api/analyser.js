@@ -43,6 +43,17 @@ export default async function handler(req, res) {
 
   try {
     const { text } = req.body || {};
+
+    // ── VALIDERTE REFERANSETALL ──────────────────────────────────────────────
+    // Bygg forankrede reklamasjonsposter FØR AI-kallet. Hvert kronebeløp og hver
+    // prosent stammer herfra (api/referanse.js), ikke fra språkmodellen. AI-en
+    // får listen og markerer bare hvilke poster som er UDEKKET i annonsen.
+    const { byggReferanse } = await import("./referanse.js");
+    const bildata = trekkBildata(text);
+    const referanse = byggReferanse(bildata);
+    const refListe = referanse.poster
+      .map((p, i) => (i + 1) + ". " + p.omrade + " | typisk kostnad " + p.kostNok.toLocaleString("nb-NO") + " kr | basisrisiko " + p.sannsynlighet + "% | " + p.hvorfor)
+      .join("\n");
     if (!text || text.trim().length < 25) {
       return res.status(400).json({ error: "Annonseteksten er for kort." });
     }
@@ -67,8 +78,19 @@ Hver subjektiv frase du flagger (f.eks. «strøken», «meget godt vedlikeholdt�
 
 MODELLSVAKHETER: Basert på bilens merke, modell, årgang og motor/girkasse, list kjente svakheter eller vanlige feilpunkter for nettopp denne modellen (f.eks. DSG-mekatronikk på VW, EGR/partikkelfilter på visse dieselmotorer, kjedestrekk, kjente rustpunkter). Dette hjelper selgeren være åpen om det og unngå reklamasjon. Vær konkret og faglig – kun reelle kjente svakheter, ikke gjett vilt. Kjenner du ingen spesifikke svakheter, returner tom liste.
 
+VALIDERTE REFERANSETALL – SVÆRT VIKTIG:
+Nedenfor er en liste over reklamasjonsområder for nettopp denne bilen, med FASTE kostnads- og risikotall hentet fra Kvitt'ns referansedatabase. Du skal IKKE finne på egne kronebeløp eller prosenter – du skal BRUKE disse tallene. Din jobb er å vurdere, for hvert område, om annonsen ALLEREDE opplyser åpent om forholdet (da er risikoen lav – kjøper er informert) eller om det er UDEKKET (da gjelder basisrisikoen).
+
+Referanseområder for denne bilen:
+${refListe}
+
+Regler for bruk:
+- I "skadeRisiko": ta med områdene over. Bruk områdenavnet og kostnaden UENDRET. For sannsynlighet: bruk basisrisikoen som utgangspunkt, men SETT NED mot 3-5% hvis annonsen åpent opplyser om forholdet (åpenhet reduserer krav). Ikke øk over basis.
+- I "reklamasjon.eksponering_nok": summer kostnaden for de områdene som er UDEKKET i annonsen (rund til nærmeste 1000). Er alt åpent opplyst, sett et lavt beløp eller null.
+- I "reklamasjon.begrunnelse": referer til de konkrete postene og at tallene er basert på Kvitt'ns referansedatabase (bransjeanslag). Nevn hvilke poster som er udekket.
+
 Svar KUN med gyldig JSON, ingen markdown, ingen backticks. Ikke bruk ekte linjeskift inne i verdiene. Struktur:
-{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall eller null>,"begrunnelse":"<kort begrunnelse>"},"modellsjekk":[{"punkt":"<kjent svakhet for denne modellen>","hvorfor":"<hvorfor selger bør sjekke/opplyse om dette>"}]}
+{"score":<0-100, 100=best beskyttet>,"label":"<Høy risiko | Moderat risiko | Godt beskyttet>","blurb":"<1-2 setninger til selgeren, tiltal med 'du'>","banned":["<eksakt subjektiv frase fra originalen>"],"flags":[{"level":"bad|warn|ok","title":"<kort>","detail":"<en setning>"}],"reklamasjon":{"utfall":"<Prisavslag | Heving | Ingen vesentlig risiko>","eksponering_nok":<heltall, sum av UDEKKEDE referanseposter>,"begrunnelse":"<hvilke referanseposter er udekket og driver summen>"},"skadeRisiko":[{"omrade":"<fra referanselisten>","sannsynlighet":<fra referanse, evt. nedjustert ved åpenhet>,"dekket":<true hvis annonsen opplyser om det, ellers false>,"hvorfor":"<én kort setning>"}],"modellsjekk":[{"punkt":"<kjent svakhet for denne modellen>","hvorfor":"<hvorfor selger bør sjekke/opplyse om dette>"}]}
 Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
 """${text}"""`;
 
@@ -100,8 +122,17 @@ Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
       flags: r.flags,
       banned: r.banned || [],
       reklamasjon: r.reklamasjon || null,
+      skadeRisiko: flettReferanse(r.skadeRisiko, referanse.poster),
+      _refKilde: "Kvitt'n referansedatabase (bransjeanslag)",
       modellsjekk: r.modellsjekk || [],
     };
+    // GARANTI: kronebeløpet skal ALLTID være sum av validerte, udekkede poster –
+    // aldri et fritt AI-tall. Overstyr det AI-en måtte ha satt.
+    const validertSum = beregnEksponering(svar.skadeRisiko);
+    if (svar.reklamasjon) {
+      svar.reklamasjon.eksponering_nok = validertSum;
+      svar.reklamasjon._validert = true;
+    }
 
     // Lagre i cache (uten _text – den er brukerspesifikk og legges på ved retur)
     try {
@@ -126,6 +157,54 @@ Lag 4-6 flags og opptil 4 modellsjekk-punkter (tom liste hvis ukjent). Annonse:
     }
     return res.status(500).json({ error: brukervennlig, detail: m });
   }
+}
+
+// Trekker enkle bildata ut av annonseteksten så referansemotoren kan slå opp.
+function trekkBildata(text) {
+  const t = String(text || "");
+  const finn = (re) => { const m = t.match(re); return m ? m[1].trim() : null; };
+  const merkeM = t.match(/\b(Volkswagen|VW|Audi|BMW|Mercedes-Benz|Mercedes|Toyota|Volvo|Tesla|Skoda|Ford|Peugeot|Nissan|Kia|Hyundai|Mazda|Honda|Opel|Renault|Citroen|Porsche|Seat|Suzuki|Subaru|Mitsubishi|Jaguar|Land Rover|Mini|Fiat|Dacia|Polestar)\b/i);
+  return {
+    merke: merkeM ? merkeM[1] : null,
+    modell: finn(/(?:modell|model)[:\s]+([A-Za-z0-9\- ]{2,20})/i),
+    motor: finn(/\b(\d\.\d\s?(?:TDI|TSI|TFSI|HDi|BlueHDi|dCi|CDTI|CRDi|PureTech|D4|N47|N57)\w*)\b/i)
+      || finn(/\b(TDI|TSI|TFSI|BlueHDi|HDi|dCi|CDTI|CRDi|DSG|AMG|RS\d|M\d)\b/i),
+    aar: finn(/\b(19\d{2}|20\d{2})\b/),
+    km: finn(/(\d[\d\s.]{3,})\s*km\b/i),
+    drivstoff: finn(/\b(diesel|bensin|el|elektrisk|hybrid|ladbar hybrid)\b/i),
+    gir: finn(/\b(automat|manuell|DSG|automatgir)\b/i),
+    tekst: t.slice(0, 600),
+  };
+}
+
+// Fletter AI-ens dekket-vurdering med de VALIDERTE tallene fra referansemotoren.
+// Kostnad, prosent-basis og kilde kommer ALLTID fra referansen – AI-en kan kun
+// påvirke om noe er "dekket" (opplyst i annonsen) og dermed senke prosenten.
+function flettReferanse(aiSkade, refPoster) {
+  const ai = Array.isArray(aiSkade) ? aiSkade : [];
+  return refPoster.map((p) => {
+    const treff = ai.find((a) => a && a.omrade && (
+      a.omrade.toLowerCase().includes(p.omrade.toLowerCase().slice(0, 8)) ||
+      p.omrade.toLowerCase().includes((a.omrade || "").toLowerCase().slice(0, 8))
+    ));
+    const dekket = treff ? !!treff.dekket : false;
+    const sann = dekket ? Math.min(5, p.sannsynlighet) : p.sannsynlighet;
+    return {
+      omrade: p.omrade,
+      sannsynlighet: sann,
+      kostNok: p.kostNok,        // ALLTID fra referansen
+      kilde: p.kilde,            // sporbar kildemerking
+      dekket,
+      hvorfor: (treff && treff.hvorfor) || p.hvorfor,
+    };
+  });
+}
+
+// Beregner validert eksponering = sum av UDEKKEDE posters kostnad (rundet).
+function beregnEksponering(skade) {
+  const udekket = (skade || []).filter((s) => !s.dekket);
+  const sum = udekket.reduce((s, p) => s + (p.kostNok || 0), 0);
+  return sum > 0 ? Math.round(sum / 1000) * 1000 : null;
 }
 
 // Bytter ut forbudte fraser (fra "banned") med en nøytral markør.
