@@ -379,8 +379,8 @@ footer .footer-legal{padding:0 24px 28px;justify-content:center;border-top:1px s
 .learn-link .ll-txt span{font-size:13px;color:var(--ink2)}
 .learn-link .ll-arr{width:20px;height:20px;flex:none;transition:transform .18s}
 .learn-link:hover .ll-arr{transform:translateX(3px)}
-.ansvar{display:flex;gap:10px;align-items:flex-start;background:rgba(15,29,51,.05);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;margin:0 0 16px;font-size:13px;line-height:1.55;color:var(--ink2,#4a5568)}
-.ansvar svg{flex:none;margin-top:1px}
+.ansvar{display:flex;gap:8px;align-items:center;margin:0 0 14px;font-size:12px;line-height:1.4;color:var(--ink3,#7a869a)}
+.ansvar svg{flex:none}
 .skader{margin-top:16px}
 .sk-tit{margin-bottom:10px;color:var(--ink2,#4a5568)}
 .sk-row{margin-bottom:13px}
@@ -1394,11 +1394,10 @@ function visPanel(){
   const scoreHtml=s0.render?s0.render():s0.html;
   document.getElementById('dashView').innerHTML=
     '<div class="panel-to">'+
-      '<div class="ansvar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#7a869a" stroke-width="2"/><path d="M12 8v5M12 16h.01" stroke="#7a869a" stroke-width="2" stroke-linecap="round"/></svg><span><b>Kvitt\u2019n gir generell informasjon, ikke juridisk r\u00e5dgivning.</b> Analysen er veiledende anbefalinger \u2013 du er selv ansvarlig for eget salg og egne opplysninger. Ved privatsalg gjelder kj\u00f8psloven, og du har opplysningsplikt om kjente feil. Ved tvil, kontakt en jurist.</span></div>'+
       '<div class="panel-v">'+
         '<div class="diag-kort" style="--acc-farge:'+WIZ.col+'">'+
           '<div class="diag-hode"><span class="acc-ic">01</span><span class="acc-midt"><span class="acc-tittel">Trygghetsdiagnose</span><span class="acc-tekst">'+esc(WIZ.label||'')+'</span></span><span class="acc-tall" style="color:'+WIZ.col+'">'+WIZ.score+'</span></div>'+
-          '<div class="diag-body">'+scoreHtml+'</div>'+
+          '<div class="diag-body"><div class="ansvar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#7a869a" stroke-width="2"/><path d="M12 8v5M12 16h.01" stroke="#7a869a" stroke-width="2" stroke-linecap="round"/></svg><span>Kvitt\u2019n gir generell info, ikke juridisk r\u00e5dgivning.</span></div>'+scoreHtml+'</div>'+
         '</div>'+
       '</div>'+
       '<div class="panel-h">'+
