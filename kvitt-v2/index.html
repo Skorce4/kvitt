@@ -210,6 +210,10 @@ textarea{min-height:128px;line-height:1.5;resize:vertical}
 .dlamp.open .dlamp-pil{transform:rotate(180deg)}
 .dlamp-innhold{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s var(--ease)}
 .dlamp.open .dlamp-innhold{grid-template-rows:1fr}
+@supports not (grid-template-rows: 0fr){
+  .dlamp-innhold{display:block;max-height:0;overflow:hidden;transition:max-height .32s var(--ease)}
+  .dlamp.open .dlamp-innhold{max-height:1200px}
+}
 .dlamp-inner{overflow:hidden;min-height:0}
 .dlamp-inner p{margin:0;padding:0 13px 13px 51px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.6)}
 .dlamp .di{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:none}
@@ -471,6 +475,13 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .rad:hover .acc-pil{background:var(--green-light);color:var(--green)}
 /* Utvidingen – CSS grid-rows animerer høyden (følger .valgt-klassen) */
 .rad-utvid{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s cubic-bezier(.22,1,.36,1)}
+/* Fallback for nettlesere uten stabil 0fr->1fr-animasjon (særlig eldre Chrome
+   på Windows): der grid-animasjonen ikke støttes, vis innholdet direkte via
+   max-height slik at «Nærmest din bil» m.m. ALLTID blir synlig. */
+@supports not (grid-template-rows: 0fr){
+  .rad-utvid{display:block;max-height:0;overflow:hidden;transition:max-height .5s ease}
+  .rad.valgt .rad-utvid{max-height:4000px}
+}
 .rad.valgt .rad-utvid{grid-template-rows:1fr}
 .rad-utvid>.rad-inner{overflow:hidden;min-height:0}
 .rad.valgt .rad-inner{padding:4px 22px 22px}
