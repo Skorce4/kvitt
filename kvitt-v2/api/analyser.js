@@ -2,6 +2,8 @@
 // Kaller Claude (holder API-nøkkelen hemmelig) OG øker teller i Supabase.
 // Frontend kaller /api/analyser – aldri Anthropic eller Supabase direkte.
 
+import { byggReferanse } from "./referanse.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Bruk POST." });
 
@@ -44,18 +46,24 @@ export default async function handler(req, res) {
   try {
     const { text } = req.body || {};
 
+    if (!text || text.trim().length < 25) {
+      return res.status(400).json({ error: "Annonseteksten er for kort." });
+    }
+
     // ── VALIDERTE REFERANSETALL ──────────────────────────────────────────────
     // Bygg forankrede reklamasjonsposter FØR AI-kallet. Hvert kronebeløp og hver
     // prosent stammer herfra (api/referanse.js), ikke fra språkmodellen. AI-en
     // får listen og markerer bare hvilke poster som er UDEKKET i annonsen.
-    const { byggReferanse } = await import("./referanse.js");
-    const bildata = trekkBildata(text);
-    const referanse = byggReferanse(bildata);
-    const refListe = referanse.poster
-      .map((p, i) => (i + 1) + ". " + p.omrade + " | typisk kostnad " + p.kostNok.toLocaleString("nb-NO") + " kr | basisrisiko " + p.sannsynlighet + "% | " + p.hvorfor)
-      .join("\n");
-    if (!text || text.trim().length < 25) {
-      return res.status(400).json({ error: "Annonseteksten er for kort." });
+    let referanse = { poster: [] };
+    let refListe = "";
+    try {
+      const bildata = trekkBildata(text);
+      referanse = byggReferanse(bildata);
+      refListe = referanse.poster
+        .map((p, i) => (i + 1) + ". " + p.omrade + " | typisk kostnad " + p.kostNok.toLocaleString("nb-NO") + " kr | basisrisiko " + p.sannsynlighet + "% | " + p.hvorfor)
+        .join("\n");
+    } catch (e) {
+      console.error("Referanse-feil (ikke-kritisk):", e);
     }
 
     // RASKT diagnose-kall. Returnerer kun score + flags + banned + reklamasjon.
