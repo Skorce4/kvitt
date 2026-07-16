@@ -88,12 +88,6 @@ body.result-mode .nav-link{display:none}
 input[type=url]:disabled{opacity:.55;cursor:not-allowed;background:var(--paper2)}
 input[type=url],textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r);color:var(--ink);font-family:'Poppins';font-size:15px;padding:14px 15px;outline:none;transition:border-color .18s,background .18s,box-shadow .18s}
 input[type=url]:focus,textarea:focus{border-color:var(--green);background:#fff;box-shadow:0 0 0 3px rgba(47,158,95,.14)}
-.finn-input-wrap{position:relative}
-.finn-input-wrap input{padding-right:92px}
-.paste-btn{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:var(--navy);color:#fff;border:none;border-radius:9px;padding:8px 14px;font-family:'Poppins';font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s;min-height:36px}
-.paste-btn:hover{background:#1a2f4d}
-.paste-btn:active{transform:translateY(-50%) scale(.96)}
-.paste-btn.ok{background:var(--green)}
 input::placeholder,textarea::placeholder{color:var(--ink3)}
 textarea{min-height:128px;line-height:1.5;resize:vertical}
 .hint{font-size:12.5px;color:var(--ink3);margin-top:8px}
@@ -646,6 +640,18 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .simval{font-family:'Space Grotesk';font-weight:700;font-size:18px}
 .simbig{font-family:'Space Grotesk';font-weight:700;font-size:30px;line-height:1;text-shadow:0 0 16px currentColor}
 .simwhy{margin:12px 0 0;font-size:14px;color:var(--ink2);line-height:1.55}
+/* Hierarki: hovedtall dominerer, forklaring dempes til støtte */
+.sim-hero{display:flex;flex-direction:column;gap:4px;padding:4px 0 16px;border-bottom:1px solid var(--line)}
+.sim-hero-lab{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.sim-hero-tall{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;line-height:1.05;letter-spacing:-.5px}
+.sim-hero-utf{font-size:13px;font-weight:600}
+.sim-why-box{margin-top:14px}
+.sim-why-box summary{font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+.sim-why-box summary::-webkit-details-marker{display:none}
+.sim-why-box summary::before{content:'›';display:inline-block;transition:transform .2s;color:var(--ink3);font-size:16px}
+.sim-why-box[open] summary::before{transform:rotate(90deg)}
+.sim-why-box .simwhy{margin-top:8px}
+.sim-kildenote{margin-top:8px;font-size:11.5px;color:var(--ink3);font-style:italic;line-height:1.5}
 .simnote{margin-top:12px;font-size:12px;color:var(--ink3);line-height:1.5}
 .mailwrap{margin-top:14px}
 .mailtoggle{width:100%;background:transparent;border:1.5px dashed var(--line2);color:var(--ink2);font-family:'Poppins';font-weight:600;font-size:14px;padding:12px;border-radius:var(--r);cursor:pointer;transition:.15s}
@@ -719,10 +725,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   <div class="checker" id="inputPanel">
     <div class="top"><b>Sjekk annonsen din</b><span class="lbl">Ingen innlogging</span></div>
     <label class="flabel lbl">Lim inn FINN-lenke</label>
-    <div class="finn-input-wrap">
-      <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/...">
-      <button type="button" class="paste-btn" id="pasteBtn" onclick="limInnLenke()" aria-label="Lim inn fra utklippstavlen">Lim inn</button>
-    </div>
+    <input type="url" id="finnUrl" placeholder="https://www.finn.no/mobility/item/...">
     <p class="hint">Vi henter annonsen automatisk. Funker det ikke, lim inn teksten under.</p>
     <div class="or lbl"><span>eller lim inn teksten selv</span></div>
     <textarea id="annonseTekst" placeholder="Lim inn hele teksten fra FINN-annonsen din her..."></textarea>
@@ -1010,20 +1013,6 @@ function setLoading(on,first){
 }
 function fillExample(){document.getElementById('annonseTekst').value="BMW M135i xDrive 2017, 98 000 km. Twin-scroll turbo gir maks skyv (500 Nm) fra lave 1520 omdreininger, så motoren føles veldig sterk. Bilen har fått økt ladetrykk hvis man liker å tune bilene sine. Pent brukt, går som ei kule. Selges da jeg skal bytte bil. Pris 235 000,-.";document.getElementById('annonseTekst').focus();}
 
-async function limInnLenke(){
-  const inp=document.getElementById('finnUrl');const btn=document.getElementById('pasteBtn');
-  try{
-    const txt=await navigator.clipboard.readText();
-    if(txt){
-      inp.value=txt.trim();
-      inp.dispatchEvent(new Event('input'));
-      const o=btn.textContent;btn.textContent='Limt inn';btn.classList.add('ok');
-      setTimeout(()=>{btn.textContent=o;btn.classList.remove('ok');},1400);
-    }
-  }catch(e){
-    inp.focus();
-  }
-}
 async function analyze(){
   let text="";
   const url=(document.getElementById('finnUrl').value||"").trim();
@@ -1154,13 +1143,20 @@ function render(r){
     const kr=(rk.eksponering_nok!=null)?Number(rk.eksponering_nok).toLocaleString('no-NO')+' kr':'Ingen vesentlig eksponering';
     steps.push({label:'Risiko i kroner',html:
       '<div class="step-eyebrow lbl"><span class="ic">02</span>Reklamasjonsrisiko</div>'+
-      '<h3>Reklamasjonsrisiko i kroner</h3><p class="lead">Hvis kjøper reklamerer med denne annonsen – slik kan det slå ut.</p>'+
+      '<h3>Reklamasjonsrisiko i kroner</h3>'+
       '<div class="simcard">'+
-        '<div class="simrow"><span class="simlab">Sannsynlig utfall</span><span class="simval" style="color:'+utfCol+'">'+esc(utf)+'</span></div>'+
-        '<div class="simrow"><span class="simlab">Estimert eksponering</span><span class="simbig" style="color:'+utfCol+'">'+esc(kr)+'</span></div>'+
-        '<div class="simlab" style="margin-top:14px;font-weight:600;color:var(--ink)">Hvorfor denne summen?</div>'+
-        '<p class="simwhy">'+esc(rk.begrunnelse||'')+'</p>'+
-        (rk._validert?'<p class="sk-kilde" style="margin-top:6px">Summen er beregnet fra Kvitt\u2019ns referansedatabase \u2013 sum av de udekkede postene under, ikke et fritt anslag.</p>':'')+
+        // HOVEDTALL: eksponeringen er det viktigste – stort og tydelig øverst
+        '<div class="sim-hero">'+
+          '<span class="sim-hero-lab">Dette kan en reklamasjon koste deg</span>'+
+          '<span class="sim-hero-tall" style="color:'+utfCol+'">'+esc(kr)+'</span>'+
+          '<span class="sim-hero-utf" style="color:'+utfCol+'">Sannsynlig utfall: '+esc(utf)+'</span>'+
+        '</div>'+
+        // STØTTE: hvorfor-forklaringen, tydelig men underordnet
+        '<details class="sim-why-box" open>'+
+          '<summary>Hvorfor dette beløpet?</summary>'+
+          '<p class="simwhy">'+esc(rk.begrunnelse||'')+'</p>'+
+          (rk._validert?'<p class="sim-kildenote">Beregnet fra Kvitt\u2019ns referansedatabase \u2013 sum av de udekkede postene under.</p>':'')+
+        '</details>'+
       '</div>'+
       (function(){
         const sr=Array.isArray(r.skadeRisiko)?r.skadeRisiko.filter(function(s){return s&&s.omrade&&s.sannsynlighet;}):[];
@@ -1450,7 +1446,8 @@ let animGen=0;
 function nullstillRad(rad){
   if(!rad)return;
   rad.classList.remove('valgt','dimmet');
-  if(rad.getAnimations){rad.getAnimations().forEach((a)=>a.cancel());}
+  // IKKE avbryt animasjoner her – la CSS-transitionen (grid-rows/max-height)
+  // spille ferdig så raden SYNKER smooth sammen i stedet for å hoppe.
   rad.style.transform='';rad.style.boxShadow='';
 }
 
@@ -1683,18 +1680,55 @@ function visAlleModell(){
   const m=document.getElementById('msmer');const b=document.getElementById('msvisbtn');
   if(m){m.style.display='block';}if(b){b.style.display='none';}
 }
-function delScore(){
+async function delScore(){
   const a=window.__analyse||{};
-  const score=a.score!=null?a.score:'';
-  const tekst='Min bilannonse fikk '+score+'/100 i trygghet på kvittn.no – sjekk din gratis før du selger.';
-  const url='https://kvittn.no';
-  if(navigator.share){
-    navigator.share({title:'Kvitt’n trygghetsscore',text:tekst,url}).catch(()=>{});
-  }else{
-    navigator.clipboard.writeText(tekst+' '+url).then(()=>{
-      alert('Kopiert! Lim inn hvor du vil dele.');
-    }).catch(()=>{});
+  const score=a.score!=null?a.score:0;
+  const label=a.label||'';
+  // Fargevalg etter score (matcher rapporten)
+  const col = score>=75 ? '#2f9e5f' : score>=45 ? '#d99a1c' : '#d64545';
+  // Tegn score-kortet på canvas (1080x1080, delbart kvadrat for sosiale medier)
+  const S=1080, c=document.createElement('canvas'); c.width=S; c.height=S;
+  const x=c.getContext('2d');
+  // Bakgrunn
+  x.fillStyle='#0f1d33'; x.fillRect(0,0,S,S);
+  // Subtil aksent-topp
+  x.fillStyle=col; x.fillRect(0,0,S,10);
+  // Logo-tekst
+  x.fillStyle='#fff'; x.textAlign='center';
+  x.font='700 46px "Space Grotesk", sans-serif';
+  x.fillText('KVITTN', S/2, 150);
+  x.font='400 24px Poppins, sans-serif'; x.fillStyle='rgba(255,255,255,.55)';
+  x.fillText('TRYGGHETSSCORE', S/2, 200);
+  // Stor score-ring
+  const cx=S/2, cy=560, r=200;
+  x.lineWidth=26;
+  x.strokeStyle='rgba(255,255,255,.12)';
+  x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.stroke();
+  x.strokeStyle=col;
+  x.beginPath(); x.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(Math.PI*2*score/100)); x.stroke();
+  // Score-tall
+  x.fillStyle='#fff'; x.font='700 170px "Space Grotesk", sans-serif';
+  x.fillText(String(score), cx, cy+58);
+  x.font='400 34px Poppins, sans-serif'; x.fillStyle='rgba(255,255,255,.6)';
+  x.fillText('av 100', cx, cy+112);
+  // Label
+  x.fillStyle=col; x.font='700 52px "Space Grotesk", sans-serif';
+  x.fillText(label, S/2, 880);
+  // CTA
+  x.fillStyle='rgba(255,255,255,.75)'; x.font='400 30px Poppins, sans-serif';
+  x.fillText('Sjekk din gratis på kvittn.no', S/2, 970);
+
+  const blob=await new Promise(res=>c.toBlob(res,'image/png'));
+  const fil=new File([blob],'kvittn-score.png',{type:'image/png'});
+  const tekst='Bilannonsen min fikk '+score+'/100 i trygghet på kvittn.no – sjekk din gratis før du selger.';
+
+  // Mobil med fildeling: del selve bildet
+  if(navigator.canShare && navigator.canShare({files:[fil]})){
+    try{ await navigator.share({files:[fil],text:tekst,title:'Kvitt\u2019n trygghetsscore'}); return; }catch(e){ if(e.name==='AbortError')return; }
   }
+  // Fallback: last ned bildet
+  const a2=document.createElement('a'); a2.href=URL.createObjectURL(blob); a2.download='kvittn-score.png'; a2.click();
+  setTimeout(()=>URL.revokeObjectURL(a2.href),2000);
 }
 function kopierAlt(btn){
   const a=window.__analyse||{};
