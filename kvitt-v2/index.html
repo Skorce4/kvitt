@@ -1341,7 +1341,7 @@ function render(r){
     return '<div class="step-eyebrow lbl"><span class="ic">05</span>Spørsmål</div>'+
     '<h3>Spørsmål kjøperen stiller</h3><p class="lead">Ha gode svar klare før visning, det bygger tillit og forebygger krav.</p>'+
     (a._laster?spinner:(a._tekstFeil?'<p class="lead">Kunne ikke lage spørsmål. Prøv en ny sjekk.</p>':
-      qs+foerEtter+'<div class="tamed"><div class="tamed-t">Ta med deg analysen</div><button type="button" class="btn tamedbtn" onclick="kopierAlt(this)">Kopier hele analysen</button></div>'));
+      qs+foerEtter+'<div class="tamed"><div class="tamed-t">Ta med deg analysen</div><button type="button" class="btn tamedbtn" onclick="lagPdf(this)">Generer analyse til PDF</button></div>'));
   }});
 
   WIZ.steps=steps;
@@ -1700,14 +1700,15 @@ async function delScore(){
   x.fillStyle='#fff'; x.font='700 42px \'Space Grotesk\', sans-serif'; midt('KVITTN',110);
   if(bil){ x.fillStyle='rgba(255,255,255,.85)'; x.font='600 30px Poppins, sans-serif'; midt(bil.toUpperCase(),162); }
   x.fillStyle='rgba(255,255,255,.5)'; x.font='400 20px Poppins, sans-serif'; midt('TRYGGHETSANALYSE',bil?200:170);
-  const cx=S/2, cy=430, r=155;
+  const cx=S/2, cy=410, r=150;
   x.lineWidth=24;
   x.strokeStyle='rgba(255,255,255,.12)'; x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.stroke();
   x.strokeStyle=col; x.lineCap='round'; x.beginPath(); x.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(Math.PI*2*score/100)); x.stroke();
-  x.fillStyle='#fff'; x.font='700 130px \'Space Grotesk\', sans-serif'; midt(String(score),cy+46);
-  x.fillStyle='rgba(255,255,255,.6)'; x.font='400 26px Poppins, sans-serif'; midt('av 100',cy+88);
-  x.fillStyle=col; x.font='700 40px \'Space Grotesk\', sans-serif'; midt(label,cy+150);
-  let yy=680;
+  x.fillStyle='#fff'; x.font='700 128px \'Space Grotesk\', sans-serif'; midt(String(score),cy+44);
+  x.fillStyle='rgba(255,255,255,.6)'; x.font='400 26px Poppins, sans-serif'; midt('av 100',cy+86);
+  // Label godt UNDER ringen (ringen slutter ved cy+r = 560), ingen kollisjon
+  x.fillStyle=col; x.font='700 44px \'Space Grotesk\', sans-serif'; midt(label,650);
+  let yy=740;
   if(nyScore!=null && nyScore>score){
     x.fillStyle='rgba(255,255,255,.08)';
     const bw=560, bx=(S-bw)/2; roundRect(x,bx,yy,bw,74,16); x.fill();
@@ -1724,9 +1725,9 @@ async function delScore(){
     let t=txt.length>42?txt.slice(0,40)+'\u2026':txt;
     x.fillText(t,124,y);
   };
-  if(bra){ rad('\u2713',gronn,bra.title,yy); yy+=52; }
-  if(svak){ rad('\u2715','#e0736b',svak.title,yy); yy+=52; }
-  x.fillStyle='rgba(255,255,255,.6)'; x.font='400 26px Poppins, sans-serif'; midt('Sjekk din gratis p\u00e5 kvittn.no',1010);
+  if(bra){ rad('\u2713',gronn,bra.title,yy+8); yy+=56; }
+  if(svak){ rad('\u2715','#e0736b',svak.title,yy+8); yy+=56; }
+  x.fillStyle='rgba(255,255,255,.55)'; x.font='400 26px Poppins, sans-serif'; midt('Sjekk din gratis p\u00e5 kvittn.no',1020);
   const blob=await new Promise(res=>c.toBlob(res,'image/png'));
   const fil=new File([blob],'kvittn-score.png',{type:'image/png'});
   const tekst='Bilannonsen min fikk '+score+'/100 i trygghet p\u00e5 kvittn.no'+(bil?' ('+bil+')':'')+'. Sjekk din gratis f\u00f8r du selger.';
@@ -1737,6 +1738,94 @@ async function delScore(){
   setTimeout(()=>URL.revokeObjectURL(a2.href),2000);
 }
 function roundRect(x,rx,ry,w,h,rad){x.beginPath();x.moveTo(rx+rad,ry);x.arcTo(rx+w,ry,rx+w,ry+h,rad);x.arcTo(rx+w,ry+h,rx,ry+h,rad);x.arcTo(rx,ry+h,rx,ry,rad);x.arcTo(rx,ry,rx+w,ry,rad);x.closePath();}
+// PDF-rapport: bygger en pen A4-side i et nytt vindu og aapner nettleserens
+// "skriv ut til PDF". Ingen server, ingen avhengighet - kan ikke gi 500-feil.
+function lagPdf(btn){
+  const a=window.__analyse||{};
+  const v=window.__vegvesen||{};
+  const p=window.__pris||null;
+  const o=btn.textContent;
+  btn.textContent='Genererer PDF...'; btn.disabled=true;
+  const score=a.score!=null?a.score:0;
+  const nyScore=a.nyScore!=null?a.nyScore:null;
+  const col=score>=75?'#2f9e5f':score>=45?'#d99a1c':'#d64545';
+  let bil='';
+  if(v.merke)bil=(v.merke+' '+(v.modell||'')).trim();
+  const dato=new Date().toLocaleDateString('nb-NO',{day:'2-digit',month:'long',year:'numeric'});
+  const esc2=(s)=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const kr=(n)=>(n||n===0)?Number(n).toLocaleString('nb-NO')+' kr':'';
+  const flagsHtml=(a.flags||[]).map(f=>{
+    const c=f.level==='ok'?'#2f9e5f':f.level==='bad'?'#d64545':'#d99a1c';
+    const sym=f.level==='ok'?'&#10003;':f.level==='bad'?'&#10007;':'!';
+    return '<tr><td class="fsym" style="color:'+c+'">'+sym+'</td><td><b>'+esc2(f.title)+'</b><br><span class="fdet">'+esc2(f.detail)+'</span></td></tr>';
+  }).join('');
+  const skadeHtml=(a.skadeRisiko||[]).filter(s=>s&&s.omrade).map(s=>{
+    const pr=Math.min(90,Math.max(4,Math.round(s.sannsynlighet||0)));
+    return '<tr><td>'+esc2(s.omrade)+(s.kostNok?' <span class="grA">~'+kr(s.kostNok)+'</span>':'')+'</td><td class="pr">'+pr+' %</td></tr>';
+  }).join('');
+  let rekHtml='';
+  if(a.reklamasjon){
+    const r=a.reklamasjon;
+    rekHtml='<div class="box"><div class="boxlab">Reklamasjonsrisiko</div>'+
+      '<div class="rekstor" style="color:'+col+'">'+(r.eksponering_nok!=null?kr(r.eksponering_nok):'Ingen vesentlig eksponering')+'</div>'+
+      '<div class="reksub">Sannsynlig utfall: '+esc2(r.utfall||'')+'</div>'+
+      (r.begrunnelse?'<p class="rekbeg">'+esc2(r.begrunnelse)+'</p>':'')+'</div>';
+  }
+  let prisHtml='';
+  if(p&&p.markedsverdi!=null){
+    prisHtml='<div class="box"><div class="boxlab">Pris mot markedet</div>'+
+      '<div class="prisstor">'+kr(p.markedsverdi)+'</div><div class="reksub">Estimert markedsverdi</div></div>';
+  }
+  const html='<!DOCTYPE html><html lang="no"><head><meta charset="utf-8"><title>Kvittn analyse'+(bil?' '+esc2(bil):'')+'</title>'+
+    '<style>'+
+    '@page{size:A4;margin:0}'+
+    '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#0f1d33;font-size:13px;line-height:1.5}'+
+    '.page{width:210mm;min-height:297mm;padding:22mm 20mm;margin:0 auto}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0f1d33;padding-bottom:14px;margin-bottom:22px}'+
+    '.logo{font-weight:800;font-size:26px;letter-spacing:-.5px}.logo span{color:'+col+'}'+
+    '.hd-meta{text-align:right;font-size:11px;color:#667}'+
+    '.tittel{font-size:20px;font-weight:700;margin-bottom:2px}'+
+    '.sub{color:#667;font-size:12px;margin-bottom:22px}'+
+    '.hero{display:flex;gap:24px;align-items:center;background:#0f1d33;color:#fff;border-radius:14px;padding:22px 26px;margin-bottom:22px}'+
+    '.hero-score{font-size:56px;font-weight:800;line-height:1;color:'+col+'}'+
+    '.hero-txt{flex:1}.hero-lab{font-size:18px;font-weight:700;color:'+col+'}'+
+    '.hero-sub{color:rgba(255,255,255,.7);font-size:12px;margin-top:3px}'+
+    '.etter{margin-left:auto;text-align:center;background:rgba(255,255,255,.1);border-radius:10px;padding:10px 18px}'+
+    '.etter b{color:#5fd68f;font-size:22px}.etter span{display:block;font-size:10px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em}'+
+    '.row2{display:flex;gap:16px;margin-bottom:22px}'+
+    '.box{flex:1;border:1px solid #e2e6ee;border-radius:12px;padding:16px 18px}'+
+    '.boxlab{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#889;margin-bottom:8px}'+
+    '.rekstor,.prisstor{font-size:26px;font-weight:800;line-height:1.1}'+
+    '.reksub{font-size:11px;color:#667;margin-top:2px}'+
+    '.rekbeg{font-size:11px;color:#556;margin-top:8px;line-height:1.5}'+
+    '.sek{font-size:14px;font-weight:700;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #e2e6ee}'+
+    'table{width:100%;border-collapse:collapse;margin-bottom:22px}'+
+    'td{padding:7px 4px;vertical-align:top;border-bottom:1px solid #f0f2f6;font-size:12px}'+
+    '.fsym{width:22px;font-weight:800;font-size:14px}'+
+    '.fdet{color:#667;font-size:11px}'+
+    '.pr{text-align:right;font-weight:700;white-space:nowrap;width:60px}'+
+    '.grA{color:#889;font-size:11px}'+
+    '.foot{margin-top:28px;padding-top:14px;border-top:1px solid #e2e6ee;font-size:10px;color:#889;line-height:1.5}'+
+    '</style></head><body><div class="page">'+
+    '<div class="hd"><div class="logo">KVITT<span>N</span></div><div class="hd-meta">Trygghetsanalyse<br>'+dato+'</div></div>'+
+    '<div class="tittel">'+(bil?esc2(bil):'Bilannonse')+'</div>'+
+    '<div class="sub">Analyse av hvor godt annonsen beskytter deg mot reklamasjon</div>'+
+    '<div class="hero"><div class="hero-score">'+score+'</div><div class="hero-txt"><div class="hero-lab">'+esc2(a.label||'')+'</div><div class="hero-sub">'+esc2(a.blurb||'')+'</div></div>'+
+    (nyScore!=null&&nyScore>score?'<div class="etter"><b>'+score+' &rarr; '+nyScore+'</b><span>Etter forbedring</span></div>':'')+'</div>'+
+    ((rekHtml||prisHtml)?'<div class="row2">'+rekHtml+prisHtml+'</div>':'')+
+    (flagsHtml?'<div class="sek">Funn i annonsen</div><table>'+flagsHtml+'</table>':'')+
+    (skadeHtml?'<div class="sek">Sannsynlige reklamasjonsomr&aring;der</div><table>'+skadeHtml+'</table>':'')+
+    '<div class="foot">Denne analysen er generert av Kvitt&#8217;n (kvittn.no) og gir generell informasjon, ikke juridisk r&aring;dgivning. Anslag er veiledende og bygger p&aring; annonsens innhold, kjente modellsvakheter og aktive FINN-annonser. Ved privatsalg gjelder kj&oslash;psloven. Du er selv ansvarlig for egne opplysninger.</div>'+
+    '</div></body></html>';
+  const w=window.open('','_blank');
+  if(!w){ btn.textContent='Tillat pop-up for PDF'; setTimeout(()=>{btn.textContent=o;btn.disabled=false;},2500); return; }
+  w.document.write(html); w.document.close();
+  setTimeout(()=>{ try{w.focus();w.print();}catch(e){} btn.textContent='Last ned analyse som PDF'; btn.disabled=false;
+    setTimeout(()=>{btn.textContent=o;},4000);
+  },500);
+}
+
 function kopierAlt(btn){
   const a=window.__analyse||{};
   const linjer=[];
