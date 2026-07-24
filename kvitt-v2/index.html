@@ -1381,7 +1381,7 @@ function byggKortdata(r){
       s.kort={ic:'MOD',tittel:'Modellsjekk',tall:n+' punkter',tekst:'Kjente svakheter',farge:AMBER};
     }
     else if(s.label==='Forbehold'){
-      s.kort={ic:'03',tittel:'Forbeholdstekst',tall:'Klar',tekst:'Juridisk trygg tekst',farge:GREEN};
+      s.kort={ic:'03',tittel:'Forbeholdstekst',tall:'Klar',tekst:'Tekst du kan legge inn',farge:GREEN};
     }
     else if(s.label==='Bedre annonse'){
       s.kort={ic:'04',tittel:'Bedre annonse',tall:()=>{const a=window.__analyse;if(!a||a.nyScore==null)return 'Klar';let ns=a.nyScore;if(a.score!=null&&ns<=a.score)ns=Math.min(100,a.score+Math.max(4,Math.round((100-a.score)*0.4)));return '→ '+ns;},tekst:'Forbedret annonsetekst',farge:GREEN};
