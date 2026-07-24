@@ -392,6 +392,7 @@ footer .footer-legal{padding:0 24px 28px;justify-content:center;border-top:1px s
 .sk-dek{color:#2f9e5f;font-weight:600}
 .sk-row.dekket .sk-bar i{background:#8fbf9f}
 .sk-row.dekket{opacity:.72}
+.mer-hint{display:none}
 .subpage{display:none}
 body.sub-sjekker .home-only,body.sub-reklamasjon .home-only{display:none!important}
 body.sub-sjekker #page-sjekker{display:block}
@@ -429,31 +430,7 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
   .panel-v,.panel-h{min-width:0;max-width:100%}
 }
 @media(min-width:901px){.panel-v{position:sticky;top:20px}}
-/* === MOBIL-OPTIMALISERING === */
-@media(max-width:560px){
-  html{scrollbar-gutter:auto}
-  .res-shell{padding:24px 0 20px}
-  .res-top{padding:0 4px}
-  /* Diagnose-kort + rader: mindre padding, tall som ikke sprenger */
-  .diag-hode,.rad-hode{gap:11px;padding:0 14px 0 18px;height:auto;min-height:68px;padding-top:12px;padding-bottom:12px}
-  .diag-body{padding:14px 14px 18px}
-  .acc-ic{min-width:32px;height:24px;font-size:11px}
-  .acc-tittel{font-size:9px}
-  .acc-tekst{font-size:13px;white-space:normal}
-  .acc-tall{font-size:16px}
-  .acc-pil{width:24px;height:24px}
-  .rad.valgt .rad-inner,.rad-inner{padding-left:14px;padding-right:14px}
-  /* Score-dashbord kompakt */
-  .dash-num{font-size:44px}
-  .dash-readout{padding:14px}
-  .dash-bars{gap:2px}
-  /* Innhold i utvidede faner */
-  .rad-inner h3,.diag-body h3{font-size:17px}
-  .pg-rad,.sim-row{font-size:13px}
-  /* Alt skal holde seg innenfor skjermen */
-  .panel-to,.panel-v,.panel-h,.diag-kort,.rad,.rad-inner{max-width:100%;box-sizing:border-box}
-  .rad-inner>*{max-width:100%;box-sizing:border-box}
-}
+
 /* Diagnose-kort venstre - lyst, matcher radene */
 .diag-kort{position:relative;background:var(--surface);border:1px solid rgba(228,223,212,.7);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
 .diag-kort::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc-farge,var(--green));opacity:.85}
@@ -686,6 +663,41 @@ body.result-mode .checker-wrap{margin-top:0;padding-top:24px}
 .wstep .lead{font-size:14px;color:var(--ink2);margin-bottom:18px}
 .wstep .body{flex:1}
 @media(prefers-reduced-motion:reduce){*:not(.scan-glass):not(.scan-warn),*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.sr,.rv{opacity:1;transform:none}.scan-glass,.scan-warn{animation-duration:5.2s!important;animation-iteration-count:infinite!important}}
+
+/* === MOBIL-OPTIMALISERING === */
+@media(max-width:560px){
+  html{scrollbar-gutter:auto}
+  .res-shell{padding:24px 0 20px}
+  .res-top{padding:0 4px}
+  /* Diagnose-kort + rader: mindre padding, tall som ikke sprenger */
+  .diag-hode,.rad-hode{gap:11px;padding:0 14px 0 18px;height:auto;min-height:68px;padding-top:12px;padding-bottom:12px}
+  .diag-body{padding:14px 14px 18px}
+  .acc-ic{min-width:32px;height:24px;font-size:11px}
+  .acc-tittel{font-size:9px}
+  .acc-tekst{font-size:13px;white-space:normal}
+  .acc-tall{font-size:16px}
+  .acc-pil{width:24px;height:24px}
+  .rad.valgt .rad-inner,.rad-inner{padding-left:14px;padding-right:14px}
+  /* Score-dashbord kompakt */
+  .dash-num{font-size:44px}
+  .dash-readout{padding:14px}
+  .dash-bars{gap:2px}
+  /* Innhold i utvidede faner */
+  .rad-inner h3,.diag-body h3{font-size:17px}
+  .pg-rad,.sim-row{font-size:13px}
+  /* Alt skal holde seg innenfor skjermen */
+  .panel-to,.panel-v,.panel-h,.diag-kort,.rad,.rad-inner{max-width:100%;box-sizing:border-box}
+  .rad-inner>*{max-width:100%;box-sizing:border-box}
+  /* Guide videre ned: kun mobil. Peker brukeren mot resten av rapporten. */
+  .mer-hint{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    margin:2px 0 6px;padding:13px 18px;border:1px dashed var(--line);border-radius:var(--r);
+    background:rgba(15,29,51,.03);color:var(--ink2);font-family:'Poppins',sans-serif;
+    font-size:14px;font-weight:600;cursor:pointer;transition:opacity .35s ease,transform .35s ease}
+  .mer-hint-pil{animation:merBob 1.9s ease-in-out infinite}
+  .mer-hint.skjul{opacity:0;transform:translateY(-6px);pointer-events:none}
+  @keyframes merBob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+  @media(prefers-reduced-motion:reduce){.mer-hint-pil{animation:none}}
+}
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Er Kvitt\u2019n gratis?","acceptedAnswer":{"@type":"Answer","text":"Ja. Lim inn annonsen din, s\u00e5 f\u00e5r du analysen. Ingen innlogging, ingenting \u00e5 betale."}},{"@type":"Question","name":"Hva betyr trygghetsscoren?","acceptedAnswer":{"@type":"Answer","text":"Den sier hvor godt annonsen din beskytter deg mot at kj\u00f8peren kommer tilbake og krever penger etter salget."}},{"@type":"Question","name":"Fjerner dette reklamasjonsansvaret mitt?","acceptedAnswer":{"@type":"Answer","text":"Nei. Ved privatsalg har du opplysningsplikt og et visst ansvar i to \u00e5r. Kvitt\u2019n hjelper deg \u00e5 opplyse riktig og ta gode forbehold."}},{"@type":"Question","name":"Hvor treffsikre er tallene?","acceptedAnswer":{"@type":"Answer","text":"Score, kronebel\u00f8p og prosenter er kvalifiserte anslag \u2013 beslutningsst\u00f8tte, ikke garanti."}}]}</script>
 </head>
@@ -1405,12 +1417,17 @@ function visPanel(){
           '<div class="diag-body"><div class="ansvar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#7a869a" stroke-width="2"/><path d="M12 8v5M12 16h.01" stroke="#7a869a" stroke-width="2" stroke-linecap="round"/></svg><span>Kvitt\u2019n gir generell info, ikke juridisk r\u00e5dgivning.</span></div>'+scoreHtml+'</div>'+
         '</div>'+
       '</div>'+
+      '<button type="button" class="mer-hint" id="merHint" onclick="rullTilRapport()">'+
+        '<span class="mer-hint-txt">Se resten av analysen</span>'+
+        '<svg class="mer-hint-pil" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+      '</button>'+
       '<div class="panel-h">'+
         '<div class="rad-liste" id="radListe"></div>'+
         '<button class="ny-sjekk-stor" onclick="resetTool()">Sjekk en ny annonse</button>'+
       '</div>'+
     '</div>';
   tegnRader();
+  merHintAuto();
   if(document.getElementById('scoreNum'))animerScore();
 }
 
@@ -1447,6 +1464,22 @@ function nullstillRad(rad){
   // IKKE avbryt animasjoner her, la CSS-transitionen (grid-rows/max-height)
   // spille ferdig så raden SYNKER smooth sammen i stedet for å hoppe.
   rad.style.transform='';rad.style.boxShadow='';
+}
+
+// Mobilguide: ruller ned til rapport-radene. Skjuler seg selv etter bruk,
+// og forsvinner automatisk hvis brukeren scroller forbi den på egen hånd.
+function rullTilRapport(){
+  const liste=document.getElementById('radListe');
+  const hint=document.getElementById('merHint');
+  if(hint)hint.classList.add('skjul');
+  if(liste)liste.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function merHintAuto(){
+  const hint=document.getElementById('merHint');
+  if(!hint)return;
+  const skjul=()=>{ hint.classList.add('skjul'); window.removeEventListener('scroll',paaScroll); };
+  const paaScroll=()=>{ if(window.scrollY>140) skjul(); };
+  window.addEventListener('scroll',paaScroll,{passive:true});
 }
 
 function velgRad(i){
